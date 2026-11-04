@@ -1,0 +1,12 @@
+# Compilation
+out/
+build/
+.vs/
+CMakeUserPresets.json
+
+# Secrets
+.env
+
+# Fichiers lourds ou générés
+models/
+data/index/

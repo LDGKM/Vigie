@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vigie</title>
+  <style>
+    :root { color-scheme: light dark; --bg: #f6f7f5; --panel: #fff; --text: #17201c; --muted: #5d6963; --line: #d9dfdb; --accent: #0f6e56; --error: #a32d2d; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #121714; --panel: #1b221e; --text: #edf2ef; --muted: #a5b0aa; --line: #333d38; --accent: #5dcaa5; --error: #f09595; } }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, "Segoe UI", sans-serif; }
+    main { width: min(760px, 100%); margin: 0 auto; padding: 40px 16px; }
+    h1 { margin: 0; font-size: 30px; }
+    .subtitle { margin: 4px 0 28px; color: var(--muted); }
+    form { display: flex; gap: 8px; }
+    input { flex: 1; min-width: 0; padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--text); font: inherit; }
+    button { padding: 11px 18px; border: 0; border-radius: 8px; background: var(--accent); color: var(--bg); font: inherit; font-weight: 600; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: wait; }
+    #result { margin-top: 24px; padding: 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); white-space: pre-wrap; }
+    #result[hidden] { display: none; }
+    #result.error { color: var(--error); }
+    #sources { margin: 12px 0 0; padding-left: 20px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Vigie</h1>
+    <p class="subtitle">Assistant de finance numérique. Vigie est une IA et peut se tromper.</p>
+    <form id="form">
+      <input id="question" maxlength="1000" placeholder="Pose ta question" aria-label="Question" required>
+      <button id="send" type="submit">Envoyer</button>
+    </form>
+    <section id="result" aria-live="polite" hidden></section>
+  </main>
+  <script>
+    const form = document.getElementById("form");
+    const question = document.getElementById("question");
+    const send = document.getElementById("send");
+    const result = document.getElementById("result");
+
+    function show(text, isError = false) {
+      result.hidden = false;
+      result.className = isError ? "error" : "";
+      result.textContent = text;
+    }
+
+    function showSources(sources) {
+      if (!sources.length) return;
+      const list = document.createElement("ul");
+      list.id = "sources";
+      for (const source of sources) {
+        const item = document.createElement("li");
+        item.textContent = source.title;
+        list.append(item);
+      }
+      result.append(list);
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      send.disabled = true;
+      show("Recherche en cours...");
+
+      try {
+        const response = await fetch("/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question: question.value }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          show(data.error.message, true);
+          return;
+        }
+        show(data.answer);
+        showSources(data.sources);
+      } catch {
+        show("Impossible de joindre le serveur Vigie.", true);
+      } finally {
+        send.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
