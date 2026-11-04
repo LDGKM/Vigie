@@ -42,6 +42,16 @@ En cas d'erreur, `/ask` renvoie un objet `{"error": {"code": "...", "message": "
 
 Le serveur n'écoute que sur `127.0.0.1` : il n'est accessible que depuis ce PC.
 
+## Corpus
+
+Les fiches des documents sont dans `data/corpus/sources.json`. Les fichiers eux-mêmes ne sont pas publiés sur GitHub. Pour les télécharger dans `data/corpus/raw/` :
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\download_corpus.ps1
+```
+
+Le script vérifie chaque fichier. S'il signale un échec, ouvre le lien indiqué et enregistre le document à l'emplacement affiché.
+
 ## Structure
 
 ```text
@@ -50,7 +60,8 @@ src/config.*            Lecture de la configuration
 src/api/routes.*        Routes HTTP et validation des requêtes
 src/core/assistant.*    Moteur de l'assistant, pour l'instant en démonstration
 web/index.html          Page web
-data/corpus/            Futurs documents de la base documentaire
+data/corpus/sources.json  Fiches des documents de la base documentaire
+scripts/                Outils de préparation du corpus
 ```
 
 Les routes dépendent uniquement de la classe `Assistant`. La recherche et le modèle de langage pourront donc être ajoutés sans modifier l'API.

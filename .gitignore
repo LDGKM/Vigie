@@ -10,3 +10,6 @@ CMakeUserPresets.json
 # Fichiers lourds ou générés
 models/
 data/index/
+
+# Documents téléchargés : seules leurs fiches sont publiées
+data/corpus/raw/
