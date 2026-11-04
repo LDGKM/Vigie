@@ -2,11 +2,11 @@
 
 Assistant conversationnel de finance numérique fondé sur une architecture RAG, écrit en C++20.
 
-**État actuel :** le serveur, la page web et l'API fonctionnent. Le moteur RAG n'est pas encore branché : `/ask` renvoie une réponse de démonstration, sans source.
+**État actuel :** le serveur, la page web, l'API et l'indexation du corpus fonctionnent. La recherche n'est pas encore branchée : `/ask` renvoie une réponse de démonstration, sans source.
 
 ## Compiler et lancer dans Visual Studio
 
-Prérequis : Visual Studio avec la charge de travail **Développement Desktop en C++** (qui inclut les outils CMake) et Git. Une connexion Internet est nécessaire à la première configuration pour télécharger Crow et Asio.
+Prérequis : Visual Studio avec la charge de travail **Développement Desktop en C++** (qui inclut les outils CMake) et Git. Une connexion Internet est nécessaire à la première configuration pour télécharger les dépendances.
 
 1. Ouvre Visual Studio, puis choisis **Ouvrir un dossier local** et sélectionne ce dossier.
 2. Attends la fin de la configuration CMake et sélectionne le préréglage **Windows x64 Debug**.
@@ -52,6 +52,14 @@ powershell -ExecutionPolicy Bypass -File scripts\download_corpus.ps1
 
 Le script vérifie chaque fichier. S'il signale un échec, ouvre le lien indiqué et enregistre le document à l'emplacement affiché.
 
+Pour créer la base `data/index/vigie.db`, lance `vigie_index.exe` depuis Visual Studio ou :
+
+```powershell
+.\out\build\x64-debug\vigie_index.exe
+```
+
+L'outil lit les 11 documents, les découpe par article, section ou page, puis enregistre les passages et leurs fiches. Si un document pose problème, la base existante n'est pas modifiée. Les tests se lancent avec `.\out\build\x64-debug\vigie_tests.exe`.
+
 ## Structure
 
 ```text
@@ -59,6 +67,9 @@ src/main.cpp            Démarrage du serveur
 src/config.*            Lecture de la configuration
 src/api/routes.*        Routes HTTP et validation des requêtes
 src/core/assistant.*    Moteur de l'assistant, pour l'instant en démonstration
+src/corpus/             Lecture, découpage et stockage des documents
+src/tools/              Outil d'indexation
+tests/                  Tests du corpus
 web/index.html          Page web
 data/corpus/sources.json  Fiches des documents de la base documentaire
 scripts/                Outils de préparation du corpus
