@@ -1,8 +1,10 @@
 #include "corpus/index_store.hpp"
 
+#include <cstring>
 #include <stdexcept>
 #include <string>
 #include <system_error>
+#include <utility>
 
 #include "corpus/sqlite.hpp"
 
@@ -10,7 +12,7 @@ namespace vigie::corpus {
 namespace {
 
 constexpr const char* kSchema = R"sql(
-PRAGMA user_version = 3;
+PRAGMA user_version = 4;
 
 CREATE TABLE documents (
     id TEXT PRIMARY KEY,
@@ -108,6 +110,37 @@ void store_documents(Database& database, const std::vector<IndexedDocument>& doc
 }
 
 }  // namespace
+
+VectorCache load_vector_cache(const std::filesystem::path& database_path, const std::string& embedding_model) {
+    VectorCache cache;
+    std::error_code error;
+    if (!std::filesystem::exists(database_path, error)) {
+        return cache;
+    }
+
+    try {
+        Database database(database_path, Database::Mode::ReadOnly);
+
+        Statement model(database, "SELECT value FROM metadata WHERE key = 'embedding_model'");
+        if (!model.step() || model.text(0) != embedding_model) {
+            return cache;
+        }
+
+        Statement vectors(database, R"sql(
+            SELECT c.section, c.text, v.vector
+            FROM chunks c JOIN chunk_vectors v ON v.chunk_id = c.id
+        )sql");
+        while (vectors.step()) {
+            std::vector<float> vector(vectors.blob_size(2) / sizeof(float));
+            std::memcpy(vector.data(), vectors.blob(2), vectors.blob_size(2));
+            cache.emplace(vectors.text(0) + " : " + vectors.text(1), std::move(vector));
+        }
+    } catch (const std::exception&) {
+        cache.clear();  // Une ancienne base illisible oblige seulement à tout recalculer.
+    }
+
+    return cache;
+}
 
 void write_index(const std::filesystem::path& database_path, const std::vector<IndexedDocument>& documents,
                  const std::string& embedding_model) {

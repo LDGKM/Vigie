@@ -9,7 +9,7 @@
 namespace vigie::corpus {
 
 // Transforme un texte en vecteur de sens avec un modèle local, sur le processeur.
-// Le modèle e5 attend le préfixe « query: » pour une question et « passage: » pour un document.
+// bge-m3 traite questions et documents de la même façon, sans préfixe.
 class Embedder {
 public:
     // Lève std::runtime_error si le modèle est absent ou illisible.

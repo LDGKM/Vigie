@@ -1,0 +1,416 @@
+{
+ "version": 1,
+ "note": "Questions de validation jamais utilisees pour le reglage.",
+ "questions": [
+  {
+   "id": "val-rgpd-01",
+   "theme": "rgpd",
+   "question": "Quel est le montant maximal d'une amende pour violation des principes de base du RGPD ?",
+   "expected": {
+    "document": "rgpd",
+    "sections": [
+     "Article 83"
+    ],
+    "evidence": "20 000 000"
+   },
+   "answer": ""
+  },
+  {
+   "id": "val-rgpd-02",
+   "theme": "rgpd",
+   "question": "Une décision de crédit entièrement automatisée peut-elle m'être imposée ?",
+   "expected": {
+    "document": "rgpd",
+    "sections": [
+     "Article 22"
+    ],
+    "evidence": "traitement automatisé"
+   },
+   "answer": ""
+  },
+  {
+   "id": "val-rgpd-03",
+   "theme": "rgpd",
+   "question": "Puis-je refuser que mes données servent à la prospection commerciale ?",
+   "expected": {
+    "document": "rgpd",
+    "sections": [
+     "Article 21"
+    ],
+    "evidence": "prospection"
+   },
+   "answer": ""
+  },
+  {
+   "id": "val-rgpd-04",
+   "theme": "rgpd",
+   "question": "En combien de temps doit-on répondre à ma demande d'accès à mes données ?",
+   "expected": {
+    "document": "rgpd",
+    "sections": [
+     "Article 12"
+    ],
+    "evidence": "un mois"
+   },
+   "answer": ""
+  },
+  {
+   "id": "val-rgpd-05",
+   "theme": "rgpd",
+   "question": "Quand une entreprise doit-elle désigner un délégué à la protection des données ?",
+   "expected": {
+    "document": "rgpd",
+    "sections": [
+     "Article 37"
+    ],
+    "evidence": "délégué à la protection des données"
+   },
+   "answer": ""
+  },
+  {
+   "id": "val-mica-01",
+   "theme": "mica",
+   "question": "Que doit contenir un livre blanc sur les crypto-actifs ?",
+   "expected": {
+    "document": "mica",
+    "sections": [
+     "Article 6"
+    ],
+    "evidence": "livre blanc"
+   },
+   "answer": ""
+  },
+  {
+   "id": "val-mica-02",
+   "theme": "mica",
+   "question": "Un émetteur de jetons de monnaie électronique peut-il verser des intérêts aux détenteurs ?",
+   "expected": {
+    "document": "mica",
+    "sections": [
+     "Article 50"
+    ],
+    "evidence": "intérêt"
+   },
+   "answer": ""
+  },
+  {
+   "id": "val-mica-03",
+   "theme": "mica",
+   "question": "Combien de temps l'autorité a-t-elle pour examiner une demande d'agrément de prestataire de services sur crypto-actifs ?",
+   "expected": {
+    "document": "mica",
+    "sections": [
+     "Article 63"
+    ],
+    "evidence": "25 jours ouvrables|40 jours ouvrables"
+   },
+   "answer": ""
+  },
+  {
+   "id": "val-mica-04",
+   "theme": "mica",
+   "question": "Quels fonds propres minimaux pour un prestataire de services sur crypto-actifs ?",
+   "expected": {
+    "document": "mica",
+    "sections": [
+     "Article 67",
+     "ANNEXE IV"
+    ],
+    "evidence": "fonds propres"
+   },
+   "answer": ""
+  },
+  {
+   "id": "val-mica-05",
+   "theme": "mica",
+   "question": "Diffuser de fausses informations pour faire monter le prix d'un crypto-actif est-il interdit ?",
+   "expected": {
+    "document": "mica",
+    "sections": [
+     "Article 91"
+    ],
+    "evidence": "manipulation"
+   },
+   "answer": ""
+  },
+  {
+   "id": "val-dsp2-01",
+   "theme": "dsp2",
+   "question": "Sous quel délai ma banque doit-elle rembourser un paiement que je n'ai pas autorisé ?",
+   "expected": {
+    "document": "dsp2",
+    "sections": [
+     "Article 73"
+    ],
+    "evidence": "jour ouvrable suivant"
+   },
+   "answer": ""
+  },
+  {
+   "id": "val-dsp2-02",
+   "theme": "dsp2",
+   "question": "Combien de temps ai-je pour signaler une opération frauduleuse sur mon compte ?",
+   "expected": {
+    "document": "dsp2",
+    "sections": [
+     "Article 71"
+    ],
+    "evidence": "treize mois"
+   },
+   "answer": ""
+  },
+  {
+   "id": "val-dsp2-03",
+   "theme": "dsp2",
+   "question": "Quand l'authentification forte du client est-elle obligatoire ?",
+   "expected": {
+    "document": "dsp2",
+    "sections": [
+     "Article 97"
+    ],
+    "evidence": "authentification forte"
+   },
+   "answer": ""
+  },
+  {
+   "id": "val-dsp2-04",
+   "theme": "dsp2",
+   "question": "En combien de temps un virement doit-il arriver sur le compte du bénéficiaire ?",
+   "expected": {
+    "document": "dsp2",
+    "sections": [
+     "Article 83"
+    ],
+    "evidence": "jour ouvrable"
+   },
+   "answer": ""
+  },
+  {
+   "id": "val-dsp2-05",
+   "theme": "dsp2",
+   "question": "Puis-je récupérer l'argent d'un prélèvement que j'avais pourtant autorisé ?",
+   "expected": {
+    "document": "dsp2",
+    "sections": [
+     "Article 76",
+     "Article 77"
+    ],
+    "evidence": "huit semaines"
+   },
+   "answer": ""
+  },
+  {
+   "id": "val-dora-01",
+   "theme": "dora",
+   "question": "À quelle fréquence les outils et systèmes informatiques critiques doivent-ils être testés ?",
+   "expected": {
+    "document": "dora",
+    "sections": [
+     "Article 24"
+    ],
+    "evidence": "au moins une fois par an"
+   },
+   "answer": ""
+  },
+  {
+   "id": "val-dora-02",
+   "theme": "dora",
+   "question": "Tous les combien une banque doit-elle réaliser des tests d'intrusion fondés sur la menace ?",
+   "expected": {
+    "document": "dora",
+    "sections": [
+     "Article 26"
+    ],
+    "evidence": "trois ans"
+   },
+   "answer": ""
+  },
+  {
+   "id": "val-dora-03",
+   "theme": "dora",
+   "question": "Que doit prévoir le contrat signé avec un prestataire informatique ?",
+   "expected": {
+    "document": "dora",
+    "sections": [
+     "Article 30"
+    ],
+    "evidence": "intégralité du contrat"
+   },
+   "answer": ""
+  },
+  {
+   "id": "val-dora-04",
+   "theme": "dora",
+   "question": "Comment une banque déclare-t-elle un incident informatique majeur ?",
+   "expected": {
+    "document": "dora",
+    "sections": [
+     "Article 19"
+    ],
+    "evidence": "incident majeur"
+   },
+   "answer": ""
+  },
+  {
+   "id": "val-ai-act-01",
+   "theme": "ai-act",
+   "question": "Une notation sociale des citoyens par une IA est-elle autorisée ?",
+   "expected": {
+    "document": "ai-act",
+    "sections": [
+     "Article 5"
+    ],
+    "evidence": "évaluation ou la classification"
+   },
+   "answer": ""
+  },
+  {
+   "id": "val-ai-act-02",
+   "theme": "ai-act",
+   "question": "Un système d'IA à haut risque doit-il avoir une gestion des risques ?",
+   "expected": {
+    "document": "ai-act",
+    "sections": [
+     "Article 9"
+    ],
+    "evidence": "système de gestion des risques"
+   },
+   "answer": ""
+  },
+  {
+   "id": "val-ai-act-03",
+   "theme": "ai-act",
+   "question": "Que doit contenir la documentation technique d'une IA à haut risque ?",
+   "expected": {
+    "document": "ai-act",
+    "sections": [
+     "Article 11",
+     "ANNEXE IV"
+    ],
+    "evidence": "documentation technique"
+   },
+   "answer": ""
+  },
+  {
+   "id": "val-ai-act-04",
+   "theme": "ai-act",
+   "question": "Quelle amende si un fournisseur d'IA ne respecte pas ses obligations ?",
+   "expected": {
+    "document": "ai-act",
+    "sections": [
+     "Article 99"
+    ],
+    "evidence": "15 000 000"
+   },
+   "answer": ""
+  },
+  {
+   "id": "val-ai-act-05",
+   "theme": "ai-act",
+   "question": "À partir de quand le règlement sur l'intelligence artificielle s'applique-t-il ?",
+   "expected": {
+    "document": "ai-act",
+    "sections": [
+     "Article 113"
+    ],
+    "evidence": "2 août 2026"
+   },
+   "answer": ""
+  },
+  {
+   "id": "val-ai-omnibus-01",
+   "theme": "ai-omnibus",
+   "question": "Quelle est la nouvelle date d'application pour les systèmes d'IA à haut risque de l'annexe III ?",
+   "expected": {
+    "document": "ai-omnibus",
+    "sections": [
+     "Préambule",
+     "Article 1 : Modifications du règlement (UE) 2024/1689"
+    ],
+    "evidence": "2 décembre 2027"
+   },
+   "answer": ""
+  },
+  {
+   "id": "val-bce-euro-numerique-faq-01",
+   "theme": "bce-euro-numerique-faq",
+   "question": "L'euro numérique va-t-il remplacer les pièces et les billets ?",
+   "expected": {
+    "document": "bce-euro-numerique-faq",
+    "sections": [
+     "Objectif et avantages de l’euro numérique",
+     "Effet et considérations"
+    ],
+    "evidence": "espèces"
+   },
+   "answer": ""
+  },
+  {
+   "id": "val-amf-arnaques-01",
+   "theme": "amf-arnaques",
+   "question": "Comment repérer une arnaque au placement financier ?",
+   "expected": {
+    "document": "amf-arnaques",
+    "sections": [
+     "Page 1",
+     "Page 2",
+     "Page 3",
+     "Page 4",
+     "Page 6",
+     "Page 8",
+     "Page 9",
+     "Page 10"
+    ],
+    "evidence": "arnaque"
+   },
+   "answer": ""
+  },
+  {
+   "id": "val-bdf-dsp2-01",
+   "theme": "bdf-dsp2",
+   "question": "Pourquoi ma banque me demande-t-elle une deuxième preuve d'identité lors d'un achat en ligne ?",
+   "expected": {
+    "document": "bdf-dsp2",
+    "sections": [
+     "Qu’est-ce que l’authentification forte et à quoi sert-elle ?"
+    ],
+    "evidence": "deux facteurs"
+   },
+   "answer": ""
+  }
+ ],
+ "out_of_corpus": [
+  {
+   "id": "val-hors-01",
+   "question": "Quel est le taux du PEL ?"
+  },
+  {
+   "id": "val-hors-02",
+   "question": "Quelle assurance vie choisir pour ma retraite ?"
+  },
+  {
+   "id": "val-hors-03",
+   "question": "Comment déclarer mes revenus fonciers ?"
+  },
+  {
+   "id": "val-hors-04",
+   "question": "Quelle recette pour une tarte aux pommes ?"
+  },
+  {
+   "id": "val-hors-05",
+   "question": "Qui a gagné la Coupe du monde 2018 ?"
+  },
+  {
+   "id": "val-hors-06",
+   "question": "Quelle est la capitale de l'Australie ?"
+  },
+  {
+   "id": "val-hors-07",
+   "question": "Comment réparer une fuite de robinet ?"
+  },
+  {
+   "id": "val-hors-08",
+   "question": "Quel est le meilleur smartphone cette année ?"
+  }
+ ]
+}

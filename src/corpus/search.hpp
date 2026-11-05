@@ -32,7 +32,7 @@ struct SearchOptions {
     std::size_t per_document = 3;
     double minimum_coverage = 0.6;
     double maximum_coverage_gap = 0.2;
-    double minimum_similarity = 0.86;
+    double minimum_similarity = 0.60;
     double confirmed_keyword_coverage = 0.7;
     double maximum_similarity_gap = 0.03;
     double rank_fusion_constant = 30.0;

@@ -7,11 +7,14 @@
 #include "corpus/embedder.hpp"
 #include "corpus/reranker.hpp"
 #include "corpus/search.hpp"
+#include "tools/console.hpp"
 
 using namespace vigie::corpus;
 
 // Outil de diagnostic : affiche ce que la recherche retrouve pour une question.
 int main(int argc, char** argv) {
+    vigie::tools::use_utf8_console();
+
     if (argc < 4) {
         std::cerr << "Usage : vigie_search <base> <modele> <question> [reclasseur]\n";
         return 2;

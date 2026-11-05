@@ -17,7 +17,7 @@
 namespace vigie::corpus {
 namespace {
 
-constexpr int kIndexVersion = 3;
+constexpr int kIndexVersion = 4;
 constexpr double kEpsilon = 1e-9;
 constexpr double kPreamblePenalty = 0.15;
 constexpr double kDefinitionBonus = 0.3;

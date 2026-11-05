@@ -13,6 +13,7 @@
 #include "corpus/extract_pdf.hpp"
 #include "corpus/index_store.hpp"
 #include "corpus/manifest.hpp"
+#include "tools/console.hpp"
 
 namespace fs = std::filesystem;
 using namespace vigie::corpus;
@@ -37,17 +38,20 @@ std::vector<Paragraph> extract(const DocumentRecord& record, const fs::path& pat
 }  // namespace
 
 int main(int argc, char** argv) {
+    vigie::tools::use_utf8_console();
+
     try {
         const fs::path root = argc > 1 ? fs::path(argv[1]) : fs::path(VIGIE_DEFAULT_ROOT);
         const fs::path corpus_dir = root / "data" / "corpus";
         const fs::path database = root / "data" / "index" / "vigie.db";
 
-        const std::string model_name = "multilingual-e5-small-f16.gguf";
+        const std::string model_name = "bge-m3-Q4_K_M.gguf";
         const fs::path model_path = root / "models" / model_name;
         if (!fs::exists(model_path)) {
             throw std::runtime_error("modele introuvable : lance scripts\\download_model.ps1");
         }
         const Embedder embedder(model_path);
+        const VectorCache cache = load_vector_cache(database, model_name);
 
         std::vector<IndexedDocument> documents;
         std::size_t total_chunks = 0;
@@ -63,11 +67,19 @@ int main(int argc, char** argv) {
 
                 std::vector<std::vector<float>> vectors;
                 vectors.reserve(chunks.size());
+                std::size_t calculated = 0;
+
                 for (const Chunk& chunk : chunks) {
-                    vectors.push_back(embedder.embed_passage(chunk.section + " : " + chunk.text));
-                    if (vectors.size() % 50 == 0) {
-                        std::cout << "        " << record.id << " : " << vectors.size() << '/' << chunks.size()
-                                  << std::endl;
+                    const std::string input = chunk.section + " : " + chunk.text;
+                    const auto cached = cache.find(input);
+                    if (cached != cache.end()) {
+                        vectors.push_back(cached->second);
+                    } else {
+                        vectors.push_back(embedder.embed_passage(input));
+                        if (++calculated % 50 == 0) {
+                            std::cout << "        " << record.id << " : " << calculated << " vecteurs calcules"
+                                      << std::endl;
+                        }
                     }
                 }
 

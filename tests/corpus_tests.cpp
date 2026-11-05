@@ -216,6 +216,9 @@ void test_search() {
                   {vector}}},
                 "test");
 
+    check(load_vector_cache(directory / "vigie.db", "test").size() == 4, "cache des vecteurs");
+    check(load_vector_cache(directory / "vigie.db", "autre").empty(), "cache lie au modele");
+
     const SearchIndex index(directory / "vigie.db");
 
     const auto definition = index.search("Qu'est-ce qu'un jeton de monnaie électronique ?");

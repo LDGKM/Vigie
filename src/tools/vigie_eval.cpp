@@ -16,6 +16,7 @@
 #include "corpus/embedder.hpp"
 #include "corpus/reranker.hpp"
 #include "corpus/search.hpp"
+#include "tools/console.hpp"
 
 namespace fs = std::filesystem;
 using nlohmann::json;
@@ -89,8 +90,11 @@ double percentile_95(std::vector<double> values) {
 }  // namespace
 
 int main(int argc, char** argv) {
+    vigie::tools::use_utf8_console();
+
     try {
         fs::path root = VIGIE_DEFAULT_ROOT;
+        std::string questions_file = "questions.json";
         bool keywords_only = false;
         bool rerank = true;
         SearchOptions options;
@@ -100,6 +104,12 @@ int main(int argc, char** argv) {
                 keywords_only = true;
             } else if (argument == "--no-rerank") {
                 rerank = false;
+            } else if (argument == "--candidates" && i + 1 < argc) {
+                options.rerank_candidates = static_cast<std::size_t>(std::stoul(argv[++i]));
+            } else if (argument == "--questions" && i + 1 < argc) {
+                questions_file = argv[++i];
+            } else if (argument == "--min-similarity" && i + 1 < argc) {
+                options.minimum_similarity = std::stod(argv[++i]);
             } else if (argument == "--min-rerank" && i + 1 < argc) {
                 options.minimum_rerank_score = std::stod(argv[++i]);
             } else {
@@ -107,15 +117,15 @@ int main(int argc, char** argv) {
             }
         }
 
-        std::ifstream file(root / "data" / "eval" / "questions.json", std::ios::binary);
+        std::ifstream file(root / "data" / "eval" / questions_file, std::ios::binary);
         if (!file) {
-            throw std::runtime_error("data/eval/questions.json introuvable");
+            throw std::runtime_error("data/eval/" + questions_file + " introuvable");
         }
         const json data = json::parse(file);
 
         std::unique_ptr<Embedder> embedder;
         if (!keywords_only) {
-            embedder = std::make_unique<Embedder>(root / "models" / "multilingual-e5-small-f16.gguf");
+            embedder = std::make_unique<Embedder>(root / "models" / "bge-m3-Q4_K_M.gguf");
         }
         std::unique_ptr<Reranker> reranker;
         if (!keywords_only && rerank) {

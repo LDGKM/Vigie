@@ -57,7 +57,7 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8080/ask `
 | `VIGIE_PORT` | `8080` | Port du serveur |
 | `VIGIE_WEB_DIR` | dossier `web/` du projet | Emplacement de la page web |
 | `VIGIE_DB_PATH` | `data/index/vigie.db` | Emplacement de la base documentaire |
-| `VIGIE_MODEL_PATH` | `models/multilingual-e5-small-f16.gguf` | Modèle de vectorisation |
+| `VIGIE_MODEL_PATH` | `models/bge-m3-Q4_K_M.gguf` | Modèle de vectorisation |
 | `VIGIE_RERANKER_PATH` | `models/bge-reranker-v2-m3-Q4_K_M.gguf` | Modèle de reclassement |
 
 Le serveur n'écoute que sur `127.0.0.1` : il n'est accessible que depuis ce PC.
@@ -101,9 +101,11 @@ Les routes dépendent uniquement de la classe `Assistant`. La recherche et le mo
 
 `data/eval/questions.json` contient 40 questions couvertes par le corpus et 10 questions hors corpus. Un passage est correct s'il vient du bon document, d'une section acceptée, et contient le texte de preuve. `vigie_eval.exe` mesure le rang du passage correct, les refus et le temps de recherche, puis écrit le détail dans `data/eval/`. Les options `--keywords` et `--no-rerank` permettent de comparer les modes.
 
+`data/eval/validation.json` contient 28 questions couvertes et 8 questions hors corpus, écrites après le choix du modèle et jamais utilisées pour le réglage. Pour les passer : `vigie_eval.exe --questions validation.json`. Les corriger après coup ou régler les seuils dessus les rendrait inutilisables comme contrôle.
+
 ## Modèles locaux
 
-- Vectorisation : `multilingual-e5-small`, créé par intfloat sous licence MIT, dans [une conversion GGUF publique](https://huggingface.co/hdrrayan/multilingual-e5-small-gguf).
+- Vectorisation : `bge-m3`, créé par BAAI sous licence MIT, dans [une conversion GGUF publique](https://huggingface.co/lm-kit/bge-m3-gguf).
 - Reclassement : `bge-reranker-v2-m3`, créé par BAAI sous licence Apache 2.0, dans [une conversion GGUF publique](https://huggingface.co/gpustack/bge-reranker-v2-m3-GGUF).
 
 Le script `scripts/download_model.ps1` télécharge des révisions précises et vérifie leurs empreintes SHA-256. Si un modèle manque, le serveur démarre avec la méthode de recherche encore disponible.

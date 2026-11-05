@@ -6,9 +6,9 @@ $ProgressPreference = 'SilentlyContinue'
 
 $models = @(
     @{
-        Name = 'multilingual-e5-small-f16.gguf'
-        Url  = 'https://huggingface.co/hdrrayan/multilingual-e5-small-gguf/resolve/7cdbf977cc0d1b5091a9dc41cd62405e6d0ca9f8/multilingual-e5-small-f16.gguf'
-        Hash = '6A5B2DFB958F98C851028F8C08424458249359EA921314BE378F8B82088DCAC1'
+        Name = 'bge-m3-Q4_K_M.gguf'
+        Url  = 'https://huggingface.co/lm-kit/bge-m3-gguf/resolve/9379ce497e8814b200f2dc0d18eb4045426dcb8c/bge-m3-Q4_K_M.gguf'
+        Hash = 'E251234FCB7D050991A6BE491952F485BF5C641DD10C3272DC1301FD281AD50F'
     },
     @{
         Name = 'bge-reranker-v2-m3-Q4_K_M.gguf'

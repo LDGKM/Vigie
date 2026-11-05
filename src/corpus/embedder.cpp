@@ -14,6 +14,8 @@ namespace vigie::corpus {
 namespace {
 
 constexpr int kMaximumTokens = 512;
+// bge-m3 résume un texte par son premier jeton (CLS), comme à son entraînement.
+constexpr auto kPooling = LLAMA_POOLING_TYPE_CLS;
 
 void ignore_llama_logs(ggml_log_level, const char*, void*) {}
 
@@ -51,7 +53,7 @@ public:
         context_params.n_batch = kMaximumTokens;
         context_params.n_ubatch = kMaximumTokens;
         context_params.embeddings = true;
-        context_params.pooling_type = LLAMA_POOLING_TYPE_MEAN;
+        context_params.pooling_type = kPooling;
         context_params.n_threads = thread_count();
         context_params.n_threads_batch = thread_count();
 
@@ -151,11 +153,11 @@ std::size_t Embedder::dimensions() const {
 }
 
 std::vector<float> Embedder::embed_query(std::string_view text) const {
-    return impl_->embed("query: " + std::string(text));
+    return impl_->embed(std::string(text));
 }
 
 std::vector<float> Embedder::embed_passage(std::string_view text) const {
-    return impl_->embed("passage: " + std::string(text));
+    return impl_->embed(std::string(text));
 }
 
 }  // namespace vigie::corpus
