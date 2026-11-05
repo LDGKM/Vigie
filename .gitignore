@@ -13,3 +13,6 @@ data/index/
 
 # Documents téléchargés : seules leurs fiches sont publiées
 data/corpus/raw/
+
+# Résultats générés par vigie_eval
+data/eval/results-*.json

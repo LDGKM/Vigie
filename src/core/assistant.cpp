@@ -8,7 +8,7 @@ Assistant::Assistant(corpus::SearchIndex index) : index_(std::move(index)) {}
 
 Answer Assistant::answer(const std::string& question) const {
     const std::vector<corpus::SearchHit> hits = index_.search(question);
-    const std::string engine = index_.uses_semantic_search() ? "hybrid" : "keywords";
+    const std::string engine = index_.uses_reranking() ? "reranked" : index_.uses_semantic_search() ? "hybrid" : "keywords";
 
     if (hits.empty()) {
         return Answer{"Information non trouvée dans la base documentaire de Vigie.", {}, engine, "not_found"};

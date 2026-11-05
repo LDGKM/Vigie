@@ -12,6 +12,7 @@ Config load_config() {
     config.web_dir = VIGIE_DEFAULT_WEB_DIR;
     config.database_path = std::string(VIGIE_DEFAULT_ROOT) + "/data/index/vigie.db";
     config.model_path = std::string(VIGIE_DEFAULT_ROOT) + "/models/multilingual-e5-small-f16.gguf";
+    config.reranker_path = std::string(VIGIE_DEFAULT_ROOT) + "/models/bge-reranker-v2-m3-Q4_K_M.gguf";
 
     if (const char* web_dir = std::getenv("VIGIE_WEB_DIR")) {
         config.web_dir = web_dir;
@@ -23,6 +24,10 @@ Config load_config() {
 
     if (const char* model_path = std::getenv("VIGIE_MODEL_PATH")) {
         config.model_path = model_path;
+    }
+
+    if (const char* reranker_path = std::getenv("VIGIE_RERANKER_PATH")) {
+        config.reranker_path = reranker_path;
     }
 
     if (const char* port = std::getenv("VIGIE_PORT")) {

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(Vigie VERSION 0.4.0 LANGUAGES C CXX)
+project(Vigie VERSION 0.5.0 LANGUAGES C CXX)
 
 if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "Vigie se compile en 64 bits : ouvre un environnement Visual Studio x64.")
@@ -133,6 +133,7 @@ add_library(vigie_corpus STATIC
     src/corpus/extract_pdf.cpp
     src/corpus/index_store.cpp
     src/corpus/manifest.cpp
+    src/corpus/reranker.cpp
     src/corpus/search.cpp
 )
 target_include_directories(vigie_corpus PUBLIC src)
@@ -159,6 +160,13 @@ add_executable(vigie_search src/tools/vigie_search.cpp)
 target_link_libraries(vigie_search PRIVATE vigie_corpus)
 vigie_compile_options(vigie_search)
 vigie_copy_pdfium(vigie_search)
+
+add_executable(vigie_eval src/tools/vigie_eval.cpp)
+target_link_libraries(vigie_eval PRIVATE vigie_corpus)
+target_include_directories(vigie_eval SYSTEM PRIVATE "${nlohmann_json_header_SOURCE_DIR}")
+target_compile_definitions(vigie_eval PRIVATE VIGIE_DEFAULT_ROOT="${CMAKE_SOURCE_DIR}")
+vigie_compile_options(vigie_eval)
+vigie_copy_pdfium(vigie_eval)
 
 enable_testing()
 add_executable(vigie_tests tests/corpus_tests.cpp)

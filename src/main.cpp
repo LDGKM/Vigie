@@ -8,6 +8,7 @@
 #include "config.hpp"
 #include "core/assistant.hpp"
 #include "corpus/embedder.hpp"
+#include "corpus/reranker.hpp"
 
 int main() {
     try {
@@ -21,7 +22,17 @@ int main() {
             std::cerr << "Recherche par le sens desactivee : " << error.what() << std::endl;
         }
 
-        const vigie::Assistant assistant{vigie::corpus::SearchIndex(config.database_path, embedder.get())};
+        std::unique_ptr<vigie::corpus::Reranker> reranker;
+        if (embedder) {
+            try {
+                reranker = std::make_unique<vigie::corpus::Reranker>(config.reranker_path);
+            } catch (const std::exception& error) {
+                std::cerr << "Reclassement desactive : " << error.what() << std::endl;
+            }
+        }
+
+        const vigie::Assistant assistant{
+            vigie::corpus::SearchIndex(config.database_path, embedder.get(), reranker.get())};
 
         crow::SimpleApp app;
         vigie::register_routes(app, config, assistant);

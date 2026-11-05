@@ -23,6 +23,7 @@ struct SearchHit {
     std::string text;
     double coverage = 0.0;    // Part de la question retrouvée par mots-clés.
     double similarity = 0.0;  // Proximité de sens avec la question.
+    double rerank_score = 0.0;  // Score du reclassement, s'il est actif.
 };
 
 struct SearchOptions {
@@ -35,6 +36,8 @@ struct SearchOptions {
     double confirmed_keyword_coverage = 0.7;
     double maximum_similarity_gap = 0.03;
     double rank_fusion_constant = 30.0;
+    std::size_t rerank_candidates = 10;
+    double minimum_rerank_score = -3.0;
 };
 
 // Levée si la base n'existe pas ou doit être reconstruite avec vigie_index.
@@ -47,20 +50,24 @@ public:
 std::vector<std::string> extract_terms(std::string_view question);
 
 class Embedder;
+class Reranker;
 
 class SearchIndex {
 public:
     // Sans modèle de vectorisation, la recherche se limite aux mots-clés.
-    explicit SearchIndex(std::filesystem::path database_path, const Embedder* embedder = nullptr);
+    explicit SearchIndex(std::filesystem::path database_path, const Embedder* embedder = nullptr,
+                         const Reranker* reranker = nullptr);
 
     // Une liste vide signifie qu'aucun passage ne répond assez à la question.
     std::vector<SearchHit> search(std::string_view question, const SearchOptions& options = {}) const;
 
     bool uses_semantic_search() const { return embedder_ != nullptr; }
+    bool uses_reranking() const { return embedder_ != nullptr && reranker_ != nullptr; }
 
 private:
     std::filesystem::path database_path_;
     const Embedder* embedder_;
+    const Reranker* reranker_;
 };
 
 }  // namespace vigie::corpus

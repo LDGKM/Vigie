@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "corpus/embedder.hpp"
+#include "corpus/reranker.hpp"
 #include "corpus/sqlite.hpp"
 
 namespace vigie::corpus {
@@ -234,8 +235,8 @@ std::vector<std::string> extract_terms(std::string_view question) {
     return terms;
 }
 
-SearchIndex::SearchIndex(std::filesystem::path database_path, const Embedder* embedder)
-    : database_path_(std::move(database_path)), embedder_(embedder) {}
+SearchIndex::SearchIndex(std::filesystem::path database_path, const Embedder* embedder, const Reranker* reranker)
+    : database_path_(std::move(database_path)), embedder_(embedder), reranker_(reranker) {}
 
 std::vector<SearchHit> SearchIndex::search(std::string_view question, const SearchOptions& options) const {
     const std::vector<std::string> terms = extract_terms(question);
@@ -363,8 +364,11 @@ std::vector<SearchHit> SearchIndex::search(std::string_view question, const Sear
     std::unordered_map<int, double> fusion;
     std::unordered_map<int, SearchHit> hits_by_chunk;
 
-    if (best_coverage + kEpsilon >= required && keywords_reliable) {
-        const double floor = std::max(required, best_coverage - options.maximum_coverage_gap);
+    // Le reclassement décide lui-même : il reçoit donc tous les candidats, sans seuil préalable.
+    const bool rerank = reranker_ != nullptr && embedder_ != nullptr;
+
+    if (rerank || (best_coverage + kEpsilon >= required && keywords_reliable)) {
+        const double floor = rerank ? 0.0 : std::max(required, best_coverage - options.maximum_coverage_gap);
         double position = 1.0;
         for (const Candidate& candidate : candidates) {
             if (candidate.hit.coverage + kEpsilon >= floor) {
@@ -383,7 +387,8 @@ std::vector<SearchHit> SearchIndex::search(std::string_view question, const Sear
             WHERE c.id = ?
         )sql");
 
-        const double floor = std::max(options.minimum_similarity, best_similarity - options.maximum_similarity_gap);
+        const double floor = rerank ? -1.0 : std::max(options.minimum_similarity,
+                                                      best_similarity - options.maximum_similarity_gap);
         double position = 1.0;
         for (const ChunkSimilarity& item : nearest) {
             auto existing = hits_by_chunk.find(item.chunk_id);
@@ -428,6 +433,20 @@ std::vector<SearchHit> SearchIndex::search(std::string_view question, const Sear
     std::sort(ordered.begin(), ordered.end(), [](const auto& left, const auto& right) {
         return left.first != right.first ? left.first > right.first : left.second < right.second;
     });
+
+    if (rerank) {
+        ordered.resize(std::min(ordered.size(), options.rerank_candidates));
+        for (auto& [score, chunk_id] : ordered) {
+            SearchHit& hit = hits_by_chunk.at(chunk_id);
+            hit.rerank_score = reranker_->score(question, hit.section + " : " + hit.text);
+            score = hit.rerank_score;
+        }
+        std::stable_sort(ordered.begin(), ordered.end(),
+                         [](const auto& left, const auto& right) { return left.first > right.first; });
+        if (ordered.empty() || ordered.front().first + kEpsilon < options.minimum_rerank_score) {
+            return {};
+        }
+    }
 
     std::vector<SearchHit> hits;
     std::unordered_map<std::string, std::size_t> per_document;

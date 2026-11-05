@@ -1,0 +1,578 @@
+{
+  "version": 1,
+  "note": "Questions de référence de Vigie. Un passage est correct s'il vient du bon document, d'une section acceptée, et contient le texte de preuve.",
+  "questions": [
+    {
+      "id": "rgpd-01",
+      "theme": "rgpd",
+      "question": "Dans quel délai une violation de données doit-elle être signalée à l'autorité de contrôle ?",
+      "expected": {
+        "document": "rgpd",
+        "sections": [
+          "Article 33",
+          "Préambule"
+        ],
+        "evidence": "72 heures"
+      },
+      "answer": "72 heures au plus tard après en avoir pris connaissance, lorsque c'est possible."
+    },
+    {
+      "id": "rgpd-02",
+      "theme": "rgpd",
+      "question": "Quelle amende maximale risque une entreprise qui ne respecte pas les droits des personnes ?",
+      "expected": {
+        "document": "rgpd",
+        "sections": [
+          "Article 83"
+        ],
+        "evidence": "20 000 000"
+      },
+      "answer": "Jusqu'à 20 000 000 EUR ou 4 % du chiffre d'affaires annuel mondial total pour une entreprise."
+    },
+    {
+      "id": "rgpd-03",
+      "theme": "rgpd",
+      "question": "Une personne peut-elle exiger la suppression de ses données ?",
+      "expected": {
+        "document": "rgpd",
+        "sections": [
+          "Article 17"
+        ],
+        "evidence": "effacement"
+      },
+      "answer": "Oui, le droit à l'effacement s'applique dans les cas prévus par le règlement."
+    },
+    {
+      "id": "rgpd-04",
+      "theme": "rgpd",
+      "question": "À partir de quel âge un enfant peut-il consentir seul à un service en ligne ?",
+      "expected": {
+        "document": "rgpd",
+        "sections": [
+          "Article 8"
+        ],
+        "evidence": "16 ans"
+      },
+      "answer": "16 ans, un État membre pouvant prévoir un âge inférieur."
+    },
+    {
+      "id": "rgpd-05",
+      "theme": "rgpd",
+      "question": "Quand faut-il réaliser une analyse d'impact sur la protection des données ?",
+      "expected": {
+        "document": "rgpd",
+        "sections": [
+          "Article 35"
+        ],
+        "evidence": "analyse de l'impact"
+      },
+      "answer": "Lorsqu'un traitement est susceptible d'engendrer un risque élevé pour les droits et libertés."
+    },
+    {
+      "id": "rgpd-06",
+      "theme": "rgpd",
+      "question": "Puis-je récupérer mes données pour les envoyer à un autre service ?",
+      "expected": {
+        "document": "rgpd",
+        "sections": [
+          "Article 20"
+        ],
+        "evidence": "transmettre"
+      },
+      "answer": "Oui, au titre du droit à la portabilité, dans les conditions du règlement."
+    },
+    {
+      "id": "rgpd-07",
+      "theme": "rgpd",
+      "question": "Quelles sont les missions du délégué à la protection des données ?",
+      "expected": {
+        "document": "rgpd",
+        "sections": [
+          "Article 39"
+        ],
+        "evidence": "missions"
+      },
+      "answer": "Informer, conseiller, contrôler le respect du règlement et coopérer avec l'autorité de contrôle, notamment."
+    },
+    {
+      "id": "dora-01",
+      "theme": "dora",
+      "question": "À quelle fréquence une entité financière doit-elle réaliser un test de pénétration fondé sur la menace ?",
+      "expected": {
+        "document": "dora",
+        "sections": [
+          "Article 26"
+        ],
+        "evidence": "trois ans"
+      },
+      "answer": "Au moins tous les trois ans."
+    },
+    {
+      "id": "dora-02",
+      "theme": "dora",
+      "question": "Qui porte la responsabilité finale de la gestion du risque informatique dans une entité financière ?",
+      "expected": {
+        "document": "dora",
+        "sections": [
+          "Article 5",
+          "Préambule"
+        ],
+        "evidence": "organe de direction"
+      },
+      "answer": "L'organe de direction."
+    },
+    {
+      "id": "dora-03",
+      "theme": "dora",
+      "question": "Quel registre faut-il tenir pour les contrats avec les prestataires de services informatiques ?",
+      "expected": {
+        "document": "dora",
+        "sections": [
+          "Article 28",
+          "Préambule"
+        ],
+        "evidence": "registre d'informations"
+      },
+      "answer": "Un registre d'informations sur tous les accords contractuels relatifs à l'utilisation de services TIC."
+    },
+    {
+      "id": "dora-04",
+      "theme": "dora",
+      "question": "Selon quels critères classer un incident lié aux TIC ?",
+      "expected": {
+        "document": "dora",
+        "sections": [
+          "Article 18"
+        ],
+        "evidence": "critères"
+      },
+      "answer": "Selon des critères comme le nombre de clients touchés, la durée, la zone géographique et la criticité des services."
+    },
+    {
+      "id": "dora-05",
+      "theme": "dora",
+      "question": "Que doit faire une entité financière après un incident informatique majeur ?",
+      "expected": {
+        "document": "dora",
+        "sections": [
+          "Article 19"
+        ],
+        "evidence": "déclarent"
+      },
+      "answer": "Elle le déclare à l'autorité compétente selon les notifications et rapports prévus."
+    },
+    {
+      "id": "dora-06",
+      "theme": "dora",
+      "question": "Quelles règles s'appliquent aux sauvegardes et à la restauration des données ?",
+      "expected": {
+        "document": "dora",
+        "sections": [
+          "Article 12"
+        ],
+        "evidence": "sauvegarde"
+      },
+      "answer": "Des politiques de sauvegarde, des procédures de restauration et de rétablissement, ainsi que des tests réguliers."
+    },
+    {
+      "id": "mica-01",
+      "theme": "mica",
+      "question": "Un particulier peut-il annuler un achat de crypto-actifs auprès d'un émetteur ?",
+      "expected": {
+        "document": "mica",
+        "sections": [
+          "Article 13"
+        ],
+        "evidence": "14 jours"
+      },
+      "answer": "Oui, dans certains cas, il dispose de 14 jours calendaires pour se rétracter."
+    },
+    {
+      "id": "mica-02",
+      "theme": "mica",
+      "question": "Une offre de crypto-actifs à un petit nombre de personnes échappe-t-elle aux obligations ?",
+      "expected": {
+        "document": "mica",
+        "sections": [
+          "Article 4"
+        ],
+        "evidence": "150 personnes"
+      },
+      "answer": "Oui pour une offre à moins de 150 personnes par État membre, selon l'article 4."
+    },
+    {
+      "id": "mica-03",
+      "theme": "mica",
+      "question": "Que doit contenir un livre blanc sur les crypto-actifs ?",
+      "expected": {
+        "document": "mica",
+        "sections": [
+          "Article 6",
+          "ANNEXE I"
+        ],
+        "evidence": "livre blanc"
+      },
+      "answer": "Les informations sur l'offreur, l'émetteur, le projet, l'offre, les droits, la technologie et les risques."
+    },
+    {
+      "id": "mica-04",
+      "theme": "mica",
+      "question": "Quels comportements sont considérés comme une manipulation de marché ?",
+      "expected": {
+        "document": "mica",
+        "sections": [
+          "Article 91"
+        ],
+        "evidence": "manipulation de marché"
+      },
+      "answer": "Notamment les ordres ou opérations donnant des signaux trompeurs ou fixant artificiellement un cours."
+    },
+    {
+      "id": "mica-05",
+      "theme": "mica",
+      "question": "Quelle est la définition d'un jeton de monnaie électronique ?",
+      "expected": {
+        "document": "mica",
+        "sections": [
+          "Article 3"
+        ],
+        "evidence": "jeton de monnaie électronique"
+      },
+      "answer": "Un crypto-actif dont la stabilité de valeur est recherchée par référence à une monnaie officielle."
+    },
+    {
+      "id": "mica-06",
+      "theme": "mica",
+      "question": "Quelles garanties financières doivent détenir les prestataires de services sur crypto-actifs ?",
+      "expected": {
+        "document": "mica",
+        "sections": [
+          "Article 67",
+          "ANNEXE IV"
+        ],
+        "evidence": "prudentielles"
+      },
+      "answer": "Des garanties prudentielles sous forme de fonds propres ou de police d'assurance, selon le plus élevé des montants prévus."
+    },
+    {
+      "id": "mica-07",
+      "theme": "mica",
+      "question": "Peut-on se faire rembourser un jeton de monnaie électronique à tout moment ?",
+      "expected": {
+        "document": "mica",
+        "sections": [
+          "Article 49"
+        ],
+        "evidence": "au pair"
+      },
+      "answer": "Oui, l'émetteur rembourse le détenteur à tout moment et au pair."
+    },
+    {
+      "id": "mica-08",
+      "theme": "mica",
+      "question": "Quelles sont les obligations d'un prestataire qui conserve des crypto-actifs pour ses clients ?",
+      "expected": {
+        "document": "mica",
+        "sections": [
+          "Article 75"
+        ],
+        "evidence": "conservation"
+      },
+      "answer": "Conclure un accord, tenir un registre des positions, ségréguer les avoirs et répondre des pertes, notamment."
+    },
+    {
+      "id": "mica-09",
+      "theme": "mica",
+      "question": "Comment une société obtient-elle l'autorisation de fournir des services sur crypto-actifs ?",
+      "expected": {
+        "document": "mica",
+        "sections": [
+          "Article 59",
+          "Article 62",
+          "Article 63"
+        ],
+        "evidence": "agrément"
+      },
+      "answer": "Elle dépose une demande d'agrément auprès de l'autorité compétente de son État membre d'origine."
+    },
+    {
+      "id": "dsp2-01",
+      "theme": "dsp2",
+      "question": "Combien de temps a-t-on pour contester un paiement non autorisé ?",
+      "expected": {
+        "document": "dsp2",
+        "sections": [
+          "Article 71"
+        ],
+        "evidence": "treize mois"
+      },
+      "answer": "Au plus tard treize mois suivant la date de débit."
+    },
+    {
+      "id": "dsp2-02",
+      "theme": "dsp2",
+      "question": "Quand la banque doit-elle rembourser une opération non autorisée ?",
+      "expected": {
+        "document": "dsp2",
+        "sections": [
+          "Article 73"
+        ],
+        "evidence": "jour ouvrable suivant"
+      },
+      "answer": "Immédiatement, au plus tard à la fin du premier jour ouvrable suivant, sauf soupçon de fraude."
+    },
+    {
+      "id": "dsp2-03",
+      "theme": "dsp2",
+      "question": "Quel montant peut rester à ma charge si ma carte a été volée ?",
+      "expected": {
+        "document": "dsp2",
+        "sections": [
+          "Article 74"
+        ],
+        "evidence": "50 EUR"
+      },
+      "answer": "Le payeur peut supporter les pertes à concurrence de 50 EUR au maximum, sauf exceptions."
+    },
+    {
+      "id": "dsp2-04",
+      "theme": "dsp2",
+      "question": "Comment la directive définit-elle un prestataire de services d'information sur les comptes ?",
+      "expected": {
+        "document": "dsp2",
+        "sections": [
+          "Article 4"
+        ],
+        "evidence": "information sur les comptes"
+      },
+      "answer": "Un prestataire de services de paiement exerçant les activités visées à l'annexe I, point 8."
+    },
+    {
+      "id": "dsp2-05",
+      "theme": "dsp2",
+      "question": "Dans quels cas la banque doit-elle appliquer une authentification forte ?",
+      "expected": {
+        "document": "dsp2",
+        "sections": [
+          "Article 97"
+        ],
+        "evidence": "authentification forte"
+      },
+      "answer": "Lors de l'accès en ligne au compte, d'une opération électronique ou d'une action à distance à risque de fraude."
+    },
+    {
+      "id": "dsp2-06",
+      "theme": "dsp2",
+      "question": "Un service tiers peut-il consulter mes comptes bancaires avec mon accord ?",
+      "expected": {
+        "document": "dsp2",
+        "sections": [
+          "Article 67"
+        ],
+        "evidence": "information sur les comptes"
+      },
+      "answer": "Oui, avec le consentement explicite de l'utilisateur, selon les règles de l'article 67."
+    },
+    {
+      "id": "ia-01",
+      "theme": "ai-act",
+      "question": "Les systèmes de notation sociale sont-ils autorisés ?",
+      "expected": {
+        "document": "ai-act",
+        "sections": [
+          "Article 5",
+          "Préambule"
+        ],
+        "evidence": "comportement social|notation sociale"
+      },
+      "answer": "Non, sauf à vérifier le champ exact : l'article 5 interdit certaines pratiques de notation sociale."
+    },
+    {
+      "id": "ia-02",
+      "theme": "ai-act",
+      "question": "Quelle sanction maximale pour une pratique d'IA interdite ?",
+      "expected": {
+        "document": "ai-act",
+        "sections": [
+          "Article 99"
+        ],
+        "evidence": "35 000 000"
+      },
+      "answer": "Jusqu'à 35 000 000 EUR ou 7 % du chiffre d'affaires annuel mondial pour une entreprise."
+    },
+    {
+      "id": "ia-03",
+      "theme": "ai-omnibus",
+      "question": "À partir de quelle date les obligations des systèmes d'IA à haut risque de l'annexe III s'appliquent-elles ?",
+      "expected": {
+        "document": "ai-omnibus",
+        "sections": [
+          "Article 1",
+          "Préambule"
+        ],
+        "evidence": "2 décembre 2027"
+      },
+      "answer": "À partir du 2 décembre 2027."
+    },
+    {
+      "id": "ia-04",
+      "theme": "ai-act",
+      "question": "Un outil d'IA qui évalue la solvabilité d'un client est-il à haut risque ?",
+      "expected": {
+        "document": "ai-act",
+        "sections": [
+          "ANNEXE III",
+          "Préambule"
+        ],
+        "evidence": "solvabilité"
+      },
+      "answer": "Oui, sauf exception pour la détection de fraude financière."
+    },
+    {
+      "id": "ia-05",
+      "theme": "ai-act",
+      "question": "Faut-il prévenir les utilisateurs qu'ils parlent à une IA ?",
+      "expected": {
+        "document": "ai-act",
+        "sections": [
+          "Article 50"
+        ],
+        "evidence": "interagi"
+      },
+      "answer": "Oui, sauf si cela est évident ou dans les exceptions prévues."
+    },
+    {
+      "id": "ia-06",
+      "theme": "ai-act",
+      "question": "Quelle surveillance humaine est exigée pour une IA à haut risque ?",
+      "expected": {
+        "document": "ai-act",
+        "sections": [
+          "Article 14"
+        ],
+        "evidence": "contrôle"
+      },
+      "answer": "Un contrôle effectif par des personnes physiques pendant l'utilisation du système."
+    },
+    {
+      "id": "autre-01",
+      "theme": "bce-euro-numerique-faq",
+      "question": "Pourra-t-on payer en euro numérique sans connexion ?",
+      "expected": {
+        "document": "bce-euro-numerique-faq",
+        "sections": [
+          "*"
+        ],
+        "evidence": "hors ligne"
+      },
+      "answer": "Oui, une fonctionnalité hors ligne est prévue."
+    },
+    {
+      "id": "autre-02",
+      "theme": "bce-euro-numerique-faq",
+      "question": "Quand l'euro numérique pourrait-il être émis ?",
+      "expected": {
+        "document": "bce-euro-numerique-faq",
+        "sections": [
+          "*"
+        ],
+        "evidence": "2029"
+      },
+      "answer": "Une première émission potentielle est envisagée en 2029, si le règlement est adopté à temps."
+    },
+    {
+      "id": "autre-03",
+      "theme": "bdf-dsp2",
+      "question": "Un agrégateur garde-t-il accès à mes comptes après la fin du contrat ?",
+      "expected": {
+        "document": "bdf-dsp2",
+        "sections": [
+          "*"
+        ],
+        "evidence": "résilier"
+      },
+      "answer": "Non, après résiliation il ne doit plus accéder aux données du client."
+    },
+    {
+      "id": "autre-04",
+      "theme": "amf-arnaques",
+      "question": "Où vérifier si une société d'investissement est suspecte ?",
+      "expected": {
+        "document": "amf-arnaques",
+        "sections": [
+          "*"
+        ],
+        "evidence": "listes noires"
+      },
+      "answer": "Consulter les listes noires de l'AMF."
+    },
+    {
+      "id": "autre-05",
+      "theme": "acpr-open-banking",
+      "question": "Combien de groupes bancaires l'ACPR a-t-elle interrogés dans son enquête ?",
+      "expected": {
+        "document": "acpr-open-banking",
+        "sections": [
+          "*"
+        ],
+        "evidence": "six grands|six principaux"
+      },
+      "answer": "Six grands groupes bancaires français."
+    },
+    {
+      "id": "autre-06",
+      "theme": "bdf-dsp2",
+      "question": "Pourquoi les stablecoins cherchent-ils à avoir une valeur stable ?",
+      "expected": {
+        "document": "bdf-dsp2",
+        "sections": [
+          "*"
+        ],
+        "evidence": "stablecoins"
+      },
+      "answer": "Leur cours serait lié à un actif de référence pour moins fluctuer que les premiers cryptoactifs."
+    }
+  ],
+  "out_of_corpus": [
+    {
+      "id": "hors-01",
+      "question": "Quel est le plafond du livret A ?"
+    },
+    {
+      "id": "hors-02",
+      "question": "Comment est imposé un PEA après cinq ans ?"
+    },
+    {
+      "id": "hors-03",
+      "question": "Quel est le cours de l'action TotalEnergies ?"
+    },
+    {
+      "id": "hors-04",
+      "question": "Qui est le gouverneur de la Banque de France ?"
+    },
+    {
+      "id": "hors-05",
+      "question": "Quel est le taux directeur de la BCE aujourd'hui ?"
+    },
+    {
+      "id": "hors-06",
+      "question": "Comment déclarer ses revenus en ligne ?"
+    },
+    {
+      "id": "hors-07",
+      "question": "Quelle est la meilleure carte bancaire pour voyager ?"
+    },
+    {
+      "id": "hors-08",
+      "question": "Combien coûte un abonnement à une salle de sport ?"
+    },
+    {
+      "id": "hors-09",
+      "question": "Quelle est la hauteur de la tour Eiffel ?"
+    },
+    {
+      "id": "hors-10",
+      "question": "Comment planter des tomates ?"
+    }
+  ]
+}
