@@ -2,7 +2,7 @@
 
 Assistant conversationnel de finance numérique fondé sur une architecture RAG, écrit en C++20.
 
-**État actuel :** le serveur, la page web, l'API et l'indexation du corpus fonctionnent. La recherche n'est pas encore branchée : `/ask` renvoie une réponse de démonstration, sans source.
+**État actuel :** le serveur, la page web, l'API, l'indexation et la recherche par mots-clés fonctionnent. `/ask` renvoie les passages retrouvés et leurs sources, sans les reformuler : la recherche par le sens et le modèle de langage restent à ajouter.
 
 ## Compiler et lancer dans Visual Studio
 
@@ -29,9 +29,9 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8080/ask `
 |---|---|---|
 | GET | `/` | Page web de l'assistant |
 | GET | `/health` | Vérifie que le serveur fonctionne |
-| POST | `/ask` | Reçoit `{"question": "..."}` et renvoie `answer`, `sources` et `engine` |
+| POST | `/ask` | Reçoit `{"question": "..."}` et renvoie `answer`, `status`, `sources` et `engine` |
 
-En cas d'erreur, `/ask` renvoie un objet `{"error": {"code": "...", "message": "..."}}`, avec le statut 400 ou 413.
+`status` vaut `found` ou `not_found`. En cas d'erreur, `/ask` renvoie un objet `{"error": {"code": "...", "message": "..."}}`, avec le statut 400, 413, 500 ou 503. Le statut 503 signifie que la base doit être créée avec `vigie_index`.
 
 ## Configuration
 
@@ -39,6 +39,7 @@ En cas d'erreur, `/ask` renvoie un objet `{"error": {"code": "...", "message": "
 |---|---|---|
 | `VIGIE_PORT` | `8080` | Port du serveur |
 | `VIGIE_WEB_DIR` | dossier `web/` du projet | Emplacement de la page web |
+| `VIGIE_DB_PATH` | `data/index/vigie.db` | Emplacement de la base documentaire |
 
 Le serveur n'écoute que sur `127.0.0.1` : il n'est accessible que depuis ce PC.
 
@@ -67,8 +68,8 @@ src/main.cpp            Démarrage du serveur
 src/config.*            Lecture de la configuration
 src/api/routes.*        Routes HTTP et validation des requêtes
 src/core/assistant.*    Moteur de l'assistant, pour l'instant en démonstration
-src/corpus/             Lecture, découpage et stockage des documents
-src/tools/              Outil d'indexation
+src/corpus/             Lecture, découpage, stockage et recherche des documents
+src/tools/              Outils d'indexation et de test de la recherche
 tests/                  Tests du corpus
 web/index.html          Page web
 data/corpus/sources.json  Fiches des documents de la base documentaire

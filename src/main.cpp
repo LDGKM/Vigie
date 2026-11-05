@@ -10,7 +10,7 @@
 int main() {
     try {
         const vigie::Config config = vigie::load_config();
-        const vigie::Assistant assistant;
+        const vigie::Assistant assistant{vigie::corpus::SearchIndex(config.database_path)};
 
         crow::SimpleApp app;
         vigie::register_routes(app, config, assistant);

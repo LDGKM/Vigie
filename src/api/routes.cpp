@@ -1,10 +1,13 @@
 #include "api/routes.hpp"
 
 #include <cstddef>
+#include <exception>
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <sstream>
 #include <string>
+#include <utility>
 
 namespace vigie {
 namespace {
@@ -22,6 +25,15 @@ crow::response error_response(int status, const std::string& code, const std::st
     body["error"]["code"] = code;
     body["error"]["message"] = message;
     return json_response(status, body);
+}
+
+template <typename T>
+void set_optional(crow::json::wvalue& item, const std::string& key, const std::optional<T>& value) {
+    if (value) {
+        item[key] = *value;
+    } else {
+        item[key] = nullptr;
+    }
 }
 
 std::string trim(const std::string& text) {
@@ -67,18 +79,35 @@ crow::response handle_ask(const crow::request& request, const Assistant& assista
         return error_response(413, "question_too_long", "La question est trop longue.");
     }
 
-    const Answer answer = assistant.answer(question);
+    Answer answer;
+    try {
+        answer = assistant.answer(question);
+    } catch (const corpus::IndexUnavailable&) {
+        return error_response(503, "index_unavailable",
+                              "La base documentaire n'est pas prête : lance vigie_index, puis réessaie.");
+    } catch (const std::exception& error) {
+        CROW_LOG_ERROR << "Recherche impossible : " << error.what();
+        return error_response(500, "search_failed", "La recherche a échoué.");
+    }
 
     crow::json::wvalue response;
     response["answer"] = answer.text;
     response["engine"] = answer.engine;
+    response["status"] = answer.status;
 
     crow::json::wvalue::list sources;
     for (const Source& source : answer.sources) {
         crow::json::wvalue item;
+        item["document_id"] = source.document_id;
         item["title"] = source.title;
-        item["url"] = source.url;
+        item["issuer"] = source.issuer;
+        item["section"] = source.section;
+        set_optional(item, "page", source.page);
         item["excerpt"] = source.excerpt;
+        item["url"] = source.url;
+        set_optional(item, "published", source.published);
+        set_optional(item, "version", source.version);
+        item["version_status"] = source.version_status;
         sources.push_back(std::move(item));
     }
     response["sources"] = std::move(sources);

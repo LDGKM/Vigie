@@ -7,6 +7,7 @@
 #include "corpus/chunker.hpp"
 #include "corpus/extract_html.hpp"
 #include "corpus/index_store.hpp"
+#include "corpus/search.hpp"
 
 using namespace vigie::corpus;
 
@@ -163,6 +164,70 @@ void test_failed_index_keeps_previous_database() {
     std::filesystem::remove_all(directory);
 }
 
+void test_extract_terms() {
+    const auto terms = extract_terms("Qu’est-ce qu'un agrégateur de comptes « sécurisés » ? \" OR *");
+    const std::vector<std::string> expected = {"agregateur", "compte", "securise", "or"};
+    check(terms == expected, "mots utiles sans accents ni pluriel");
+    check(extract_terms("Qui est-ce ?").empty(), "question sans mot utile");
+    check(extract_terms("DSP2 2027 IA") == std::vector<std::string>({"dsp2", "2027", "ia"}), "sigles et nombres");
+}
+
+void test_search() {
+    const auto directory = std::filesystem::temp_directory_path() / "vigie_search_tests";
+    std::filesystem::remove_all(directory);
+    const SearchIndex missing(directory / "vigie.db");
+
+    bool unavailable = false;
+    try {
+        missing.search("agrégateur de comptes");
+    } catch (const IndexUnavailable&) {
+        unavailable = true;
+    }
+    check(unavailable, "base manquante signalee");
+
+    const auto make_record = [](const std::string& id, const std::string& title) {
+        DocumentRecord record;
+        record.id = id;
+        record.title = title;
+        record.issuer = "Test";
+        record.theme = "t";
+        record.language = "fr";
+        record.document_type = "t";
+        record.format = "html";
+        record.url = "https://example.org";
+        record.version = "2026-01-01";
+        record.version_status = "initiale";
+        record.reuse = "t";
+        return record;
+    };
+
+    write_index(directory / "vigie.db",
+                {{make_record("mica", "Règlement sur les crypto-actifs (MiCA)"),
+                  {{0, "Préambule", std::nullopt, "Les jetons de monnaie électronique sont encadrés."},
+                   {1, "Article 3 : Définitions", std::nullopt, "Un jeton de monnaie électronique est un crypto-actif."},
+                   {2, "Article 9", std::nullopt, "Le livre blanc est publié par l’émetteur."}}},
+                 {make_record("guide", "Guide des paiements"),
+                  {{0, "Page 2", 2, "Les agrégateurs de comptes regroupent les informations."}}}});
+
+    const SearchIndex index(directory / "vigie.db");
+
+    const auto definition = index.search("Qu'est-ce qu'un jeton de monnaie électronique ?");
+    check(!definition.empty() && definition[0].section == "Article 3 : Définitions", "definition en premier");
+
+    const auto accent = index.search("agregateur de compte");
+    check(accent.size() == 1 && accent[0].document_id == "guide" && accent[0].page == 2, "accents et pluriel");
+
+    check(!index.search("livre blanc MiCA").empty(), "nom du texte dans le titre");
+    const auto named = index.search("MiCA émetteur");
+    check(!named.empty() && named[0].document_id == "mica", "recherche dans le texte nomme");
+    check(index.search("recette de la tarte aux pommes").empty(), "hors corpus");
+    check(index.search("Comment fonctionne le livre blanc diesel").empty(), "mot rare absent");
+    check(index.search("\" OR * NEAR( ) -- ;").empty(), "syntaxe FTS neutralisee");
+    check(index.search("le la les").empty(), "mots vides seulement");
+
+    std::filesystem::remove_all(directory);
+}
+
 }  // namespace
 
 int main() {
@@ -172,6 +237,8 @@ int main() {
     test_web_page();
     test_chunks();
     test_failed_index_keeps_previous_database();
+    test_extract_terms();
+    test_search();
 
     if (failures == 0) {
         std::cout << "Tous les tests sont passes.\n";

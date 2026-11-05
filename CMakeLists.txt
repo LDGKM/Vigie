@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(Vigie VERSION 0.2.0 LANGUAGES C CXX)
+project(Vigie VERSION 0.3.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -107,6 +107,7 @@ add_library(vigie_corpus STATIC
     src/corpus/extract_pdf.cpp
     src/corpus/index_store.cpp
     src/corpus/manifest.cpp
+    src/corpus/search.cpp
 )
 target_include_directories(vigie_corpus PUBLIC src)
 target_include_directories(vigie_corpus SYSTEM PRIVATE "${nlohmann_json_header_SOURCE_DIR}")
@@ -128,6 +129,11 @@ target_compile_definitions(vigie_index PRIVATE VIGIE_DEFAULT_ROOT="${CMAKE_SOURC
 vigie_compile_options(vigie_index)
 vigie_copy_pdfium(vigie_index)
 
+add_executable(vigie_search src/tools/vigie_search.cpp)
+target_link_libraries(vigie_search PRIVATE vigie_corpus)
+vigie_compile_options(vigie_search)
+vigie_copy_pdfium(vigie_search)
+
 enable_testing()
 add_executable(vigie_tests tests/corpus_tests.cpp)
 target_link_libraries(vigie_tests PRIVATE vigie_corpus)
@@ -143,10 +149,12 @@ add_executable(vigie
 )
 
 target_include_directories(vigie PRIVATE src)
-target_link_libraries(vigie PRIVATE Crow::Crow)
+target_link_libraries(vigie PRIVATE Crow::Crow vigie_corpus)
 target_compile_definitions(vigie PRIVATE
     VIGIE_VERSION="${PROJECT_VERSION}"
     VIGIE_DEFAULT_WEB_DIR="${CMAKE_SOURCE_DIR}/web"
+    VIGIE_DEFAULT_ROOT="${CMAKE_SOURCE_DIR}"
 )
 
 vigie_compile_options(vigie)
+vigie_copy_pdfium(vigie)

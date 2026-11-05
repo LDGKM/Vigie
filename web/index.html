@@ -16,10 +16,16 @@
     input { flex: 1; min-width: 0; padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--text); font: inherit; }
     button { padding: 11px 18px; border: 0; border-radius: 8px; background: var(--accent); color: var(--bg); font: inherit; font-weight: 600; cursor: pointer; }
     button:disabled { opacity: .6; cursor: wait; }
-    #result { margin-top: 24px; padding: 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); white-space: pre-wrap; }
+    #result { margin-top: 24px; }
     #result[hidden] { display: none; }
-    #result.error { color: var(--error); }
-    #sources { margin: 12px 0 0; padding-left: 20px; color: var(--muted); }
+    #message { margin: 0 0 16px; }
+    #result.error #message { color: var(--error); }
+    .source { margin-top: 12px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+    .source h2 { margin: 0; font-size: 16px; line-height: 1.4; }
+    .place { margin: 2px 0 0; font-weight: 600; }
+    .meta { margin: 2px 0 10px; color: var(--muted); font-size: 14px; }
+    .excerpt { margin: 0 0 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .source a { color: var(--accent); font-size: 14px; }
   </style>
 </head>
 <body>
@@ -30,7 +36,10 @@
       <input id="question" maxlength="1000" placeholder="Pose ta question" aria-label="Question" required>
       <button id="send" type="submit">Envoyer</button>
     </form>
-    <section id="result" aria-live="polite" hidden></section>
+    <section id="result" aria-live="polite" hidden>
+      <p id="message"></p>
+      <div id="sources"></div>
+    </section>
   </main>
   <script>
     const form = document.getElementById("form");
@@ -38,22 +47,52 @@
     const send = document.getElementById("send");
     const result = document.getElementById("result");
 
+    const message = document.getElementById("message");
+    const sources = document.getElementById("sources");
+
     function show(text, isError = false) {
       result.hidden = false;
       result.className = isError ? "error" : "";
-      result.textContent = text;
+      message.textContent = text;
+      sources.replaceChildren();
     }
 
-    function showSources(sources) {
-      if (!sources.length) return;
-      const list = document.createElement("ul");
-      list.id = "sources";
-      for (const source of sources) {
-        const item = document.createElement("li");
-        item.textContent = source.title;
-        list.append(item);
+    function element(tag, className, text) {
+      const node = document.createElement(tag);
+      node.className = className;
+      node.textContent = text;
+      return node;
+    }
+
+    function formatDate(value) {
+      return new Date(`${value}T12:00:00`).toLocaleDateString("fr-FR", { dateStyle: "long" });
+    }
+
+    function sourceDetails(source) {
+      const details = [source.issuer];
+      if (source.version) details.push(`version du ${formatDate(source.version)}`);
+      details.push(source.version_status);
+      return details.join(" · ");
+    }
+
+    function showSources(items) {
+      for (const source of items) {
+        const card = document.createElement("article");
+        card.className = "source";
+        card.append(
+          element("h2", "", source.title),
+          element("p", "place", source.section),
+          element("p", "meta", sourceDetails(source)),
+          element("p", "excerpt", source.excerpt),
+        );
+
+        const link = element("a", "", "Ouvrir le document");
+        link.href = source.url;
+        link.target = "_blank";
+        link.rel = "noreferrer";
+        card.append(link);
+        sources.append(card);
       }
-      result.append(list);
     }
 
     form.addEventListener("submit", async (event) => {
