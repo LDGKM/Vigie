@@ -1,5 +1,6 @@
 #include "corpus/index_store.hpp"
 
+#include <stdexcept>
 #include <string>
 #include <system_error>
 
@@ -9,7 +10,7 @@ namespace vigie::corpus {
 namespace {
 
 constexpr const char* kSchema = R"sql(
-PRAGMA user_version = 2;
+PRAGMA user_version = 3;
 
 CREATE TABLE documents (
     id TEXT PRIMARY KEY,
@@ -37,6 +38,16 @@ CREATE TABLE chunks (
     UNIQUE (document_id, position)
 );
 
+CREATE TABLE chunk_vectors (
+    chunk_id INTEGER PRIMARY KEY REFERENCES chunks(id),
+    vector BLOB NOT NULL
+);
+
+CREATE TABLE metadata (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
 CREATE VIRTUAL TABLE chunks_fts USING fts5(
     title,
     section,
@@ -57,6 +68,8 @@ void store_documents(Database& database, const std::vector<IndexedDocument>& doc
         INSERT INTO chunks (document_id, position, title, section, page, text) VALUES (?, ?, ?, ?, ?, ?)
     )sql");
 
+    Statement vector_insert(database, "INSERT INTO chunk_vectors (chunk_id, vector) VALUES (?, ?)");
+
     for (const IndexedDocument& document : documents) {
         const DocumentRecord& record = document.record;
         document_insert.bind(1, record.id);
@@ -73,7 +86,12 @@ void store_documents(Database& database, const std::vector<IndexedDocument>& doc
         document_insert.bind(12, record.reuse);
         document_insert.run();
 
-        for (const Chunk& chunk : document.chunks) {
+        if (document.vectors.size() != document.chunks.size()) {
+            throw std::runtime_error("Nombre de vecteurs incorrect pour " + record.id);
+        }
+
+        for (std::size_t i = 0; i < document.chunks.size(); ++i) {
+            const Chunk& chunk = document.chunks[i];
             chunk_insert.bind(1, record.id);
             chunk_insert.bind(2, chunk.position);
             chunk_insert.bind(3, record.title);
@@ -81,13 +99,18 @@ void store_documents(Database& database, const std::vector<IndexedDocument>& doc
             chunk_insert.bind(5, chunk.page);
             chunk_insert.bind(6, chunk.text);
             chunk_insert.run();
+
+            vector_insert.bind(1, static_cast<int>(sqlite3_last_insert_rowid(database.get())));
+            vector_insert.bind_blob(2, document.vectors[i].data(), document.vectors[i].size() * sizeof(float));
+            vector_insert.run();
         }
     }
 }
 
 }  // namespace
 
-void write_index(const std::filesystem::path& database_path, const std::vector<IndexedDocument>& documents) {
+void write_index(const std::filesystem::path& database_path, const std::vector<IndexedDocument>& documents,
+                 const std::string& embedding_model) {
     std::filesystem::create_directories(database_path.parent_path());
 
     std::filesystem::path temporary = database_path;
@@ -100,6 +123,11 @@ void write_index(const std::filesystem::path& database_path, const std::vector<I
         database.execute(kSchema);
         database.execute("BEGIN;");
         store_documents(database, documents);
+        {
+            Statement metadata(database, "INSERT INTO metadata (key, value) VALUES ('embedding_model', ?)");
+            metadata.bind(1, embedding_model);
+            metadata.run();
+        }
         database.execute("INSERT INTO chunks_fts(chunks_fts) VALUES ('rebuild');");
         database.execute("COMMIT;");
     } catch (...) {

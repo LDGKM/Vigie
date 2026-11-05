@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <filesystem>
 #include <optional>
 #include <stdexcept>
@@ -78,6 +79,10 @@ public:
         }
     }
 
+    void bind_blob(int index, const void* data, std::size_t size) {
+        sqlite3_bind_blob(handle_, index, data, static_cast<int>(size), SQLITE_TRANSIENT);
+    }
+
     // Renvoie true tant qu'une ligne de résultat est disponible.
     bool step() {
         const int result = sqlite3_step(handle_);
@@ -118,6 +123,9 @@ public:
         }
         return sqlite3_column_int(handle_, column);
     }
+
+    const void* blob(int column) const { return sqlite3_column_blob(handle_, column); }
+    std::size_t blob_size(int column) const { return static_cast<std::size_t>(sqlite3_column_bytes(handle_, column)); }
 
     int integer(int column) const { return sqlite3_column_int(handle_, column); }
     double real(int column) const { return sqlite3_column_double(handle_, column); }

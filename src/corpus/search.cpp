@@ -3,21 +3,27 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstddef>
+#include <cstring>
 #include <set>
 #include <sstream>
 #include <unordered_map>
 #include <utility>
 
+#include "corpus/embedder.hpp"
 #include "corpus/sqlite.hpp"
 
 namespace vigie::corpus {
 namespace {
 
-constexpr int kIndexVersion = 2;
+constexpr int kIndexVersion = 3;
 constexpr double kEpsilon = 1e-9;
 constexpr double kPreamblePenalty = 0.15;
 constexpr double kDefinitionBonus = 0.3;
 constexpr double kTitleBonus = 0.1;
+constexpr double kPreambleFusionFactor = 0.75;
+constexpr double kDefinitionFusionFactor = 1.25;
+constexpr double kNamedDocumentFusionFactor = 2.0;
 
 constexpr auto kStopWords = std::to_array<std::string_view>({
     "a",      "afin",    "ai",       "ainsi",   "as",      "au",     "aujourd", "aura",    "aussi",  "aux",
@@ -151,8 +157,54 @@ bool title_mentions_term(const std::string& title, const std::vector<std::string
     });
 }
 
+// Le sigle d'un texte figure entre parenthèses à la fin de son titre : « (RGPD) », « (MiCA) ».
+bool question_names_document(const std::string& title, const std::vector<std::string>& terms) {
+    const std::size_t open = title.rfind('(');
+    if (open == std::string::npos) {
+        return false;
+    }
+    const std::string folded = " " + fold_text(title.substr(open)) + " ";
+    return std::any_of(terms.begin(), terms.end(), [&](const std::string& term) {
+        return folded.find(" " + term + " ") != std::string::npos;
+    });
+}
+
 bool is_preamble(const std::string& section) {
     return section == "Préambule";
+}
+
+struct ChunkSimilarity {
+    int chunk_id = 0;
+    float similarity = 0.0F;
+};
+
+// Compare la question à tous les passages : sur quelques milliers de vecteurs, ce calcul
+// exact reste instantané et ne manque aucun résultat.
+std::vector<ChunkSimilarity> nearest_chunks(Database& database, const std::vector<float>& query, std::size_t count) {
+    Statement statement(database, "SELECT chunk_id, vector FROM chunk_vectors");
+    std::vector<ChunkSimilarity> results;
+    std::vector<float> vector(query.size());
+
+    while (statement.step()) {
+        if (statement.blob_size(1) != query.size() * sizeof(float)) {
+            throw IndexUnavailable("Vecteurs incompatibles : relance vigie_index");
+        }
+        std::memcpy(vector.data(), statement.blob(1), statement.blob_size(1));
+
+        float similarity = 0.0F;
+        for (std::size_t i = 0; i < query.size(); ++i) {
+            similarity += query[i] * vector[i];
+        }
+        results.push_back({statement.integer(0), similarity});
+    }
+
+    const std::size_t kept = std::min(count, results.size());
+    std::partial_sort(results.begin(), results.begin() + static_cast<std::ptrdiff_t>(kept), results.end(),
+                      [](const ChunkSimilarity& left, const ChunkSimilarity& right) {
+                          return left.similarity > right.similarity;
+                      });
+    results.resize(kept);
+    return results;
 }
 
 void check_index_version(Database& database) {
@@ -182,7 +234,8 @@ std::vector<std::string> extract_terms(std::string_view question) {
     return terms;
 }
 
-SearchIndex::SearchIndex(std::filesystem::path database_path) : database_path_(std::move(database_path)) {}
+SearchIndex::SearchIndex(std::filesystem::path database_path, const Embedder* embedder)
+    : database_path_(std::move(database_path)), embedder_(embedder) {}
 
 std::vector<SearchHit> SearchIndex::search(std::string_view question, const SearchOptions& options) const {
     const std::vector<std::string> terms = extract_terms(question);
@@ -218,29 +271,37 @@ std::vector<SearchHit> SearchIndex::search(std::string_view question, const Sear
         LIMIT ?
     )sql");
 
-    std::vector<SearchHit> candidates;
+    const auto read_hit = [](const Statement& row, double chunk_coverage) {
+        SearchHit hit;
+        hit.document_id = row.text(1);
+        hit.title = row.text(2);
+        hit.issuer = row.text(3);
+        hit.url = row.text(4);
+        hit.published = row.optional_text(5);
+        hit.version = row.optional_text(6);
+        hit.version_status = row.text(7);
+        hit.section = row.text(8);
+        hit.page = row.optional_int(9);
+        hit.text = row.text(10);
+        hit.coverage = chunk_coverage;
+        return hit;
+    };
+
+    struct Candidate {
+        int chunk_id = 0;
+        SearchHit hit;
+    };
+
+    std::vector<Candidate> candidates;
     std::set<int> seen_chunks;
     const auto collect = [&](const std::string& match, std::size_t limit) {
         statement.bind(1, match);
         statement.bind(2, static_cast<int>(limit));
         while (statement.step()) {
             const int chunk_id = statement.integer(0);
-            if (!seen_chunks.insert(chunk_id).second) {
-                continue;
+            if (seen_chunks.insert(chunk_id).second) {
+                candidates.push_back({chunk_id, read_hit(statement, coverage.of(chunk_id))});
             }
-            SearchHit hit;
-            hit.document_id = statement.text(1);
-            hit.title = statement.text(2);
-            hit.issuer = statement.text(3);
-            hit.url = statement.text(4);
-            hit.published = statement.optional_text(5);
-            hit.version = statement.optional_text(6);
-            hit.version_status = statement.text(7);
-            hit.section = statement.text(8);
-            hit.page = statement.optional_int(9);
-            hit.text = statement.text(10);
-            hit.coverage = coverage.of(chunk_id);
-            candidates.push_back(std::move(hit));
         }
         statement.reset();
     };
@@ -278,33 +339,107 @@ std::vector<SearchHit> SearchIndex::search(std::string_view question, const Sear
         }
         return value;
     };
-    std::stable_sort(candidates.begin(), candidates.end(),
-                     [&](const SearchHit& left, const SearchHit& right) { return rank(left) > rank(right); });
+    std::stable_sort(candidates.begin(), candidates.end(), [&](const Candidate& left, const Candidate& right) {
+        return rank(left.hit) > rank(right.hit);
+    });
 
     const double required = terms.size() <= 2 ? 1.0 : options.minimum_coverage;
     double best_coverage = 0.0;
-    for (const SearchHit& candidate : candidates) {
-        best_coverage = std::max(best_coverage, candidate.coverage);
+    for (const Candidate& candidate : candidates) {
+        best_coverage = std::max(best_coverage, candidate.hit.coverage);
     }
+
+    std::vector<ChunkSimilarity> nearest;
+    if (embedder_ != nullptr) {
+        nearest = nearest_chunks(database, embedder_->embed_query(question), options.candidates);
+    }
+    const double best_similarity = nearest.empty() ? 0.0 : nearest.front().similarity;
+
+    // Une correspondance partielle par mots-clés doit être confirmée par le sens, si le modèle est disponible.
+    const bool keywords_reliable = embedder_ == nullptr || best_coverage + kEpsilon >= options.confirmed_keyword_coverage ||
+                                   best_similarity + kEpsilon >= options.minimum_similarity;
+
+    // Chaque méthode propose sa liste de passages. La fusion favorise ceux qu'elles retiennent toutes les deux.
+    std::unordered_map<int, double> fusion;
+    std::unordered_map<int, SearchHit> hits_by_chunk;
+
+    if (best_coverage + kEpsilon >= required && keywords_reliable) {
+        const double floor = std::max(required, best_coverage - options.maximum_coverage_gap);
+        double position = 1.0;
+        for (const Candidate& candidate : candidates) {
+            if (candidate.hit.coverage + kEpsilon >= floor) {
+                fusion[candidate.chunk_id] += 1.0 / (options.rank_fusion_constant + position);
+                hits_by_chunk[candidate.chunk_id] = candidate.hit;
+                position += 1.0;
+            }
+        }
+    }
+
+    if (!nearest.empty()) {
+        Statement chunk(database, R"sql(
+            SELECT c.id, c.document_id, d.title, d.issuer, d.url, d.published, d.version, d.version_status,
+                   c.section, c.page, c.text
+            FROM chunks c JOIN documents d ON d.id = c.document_id
+            WHERE c.id = ?
+        )sql");
+
+        const double floor = std::max(options.minimum_similarity, best_similarity - options.maximum_similarity_gap);
+        double position = 1.0;
+        for (const ChunkSimilarity& item : nearest) {
+            auto existing = hits_by_chunk.find(item.chunk_id);
+            if (existing != hits_by_chunk.end()) {
+                existing->second.similarity = item.similarity;
+            }
+            if (item.similarity + kEpsilon < floor) {
+                continue;
+            }
+            if (existing == hits_by_chunk.end()) {
+                chunk.bind(1, item.chunk_id);
+                if (chunk.step()) {
+                    SearchHit hit = read_hit(chunk, coverage.of(item.chunk_id));
+                    hit.similarity = item.similarity;
+                    hits_by_chunk[item.chunk_id] = std::move(hit);
+                }
+                chunk.reset();
+            }
+            fusion[item.chunk_id] += 1.0 / (options.rank_fusion_constant + position);
+            position += 1.0;
+        }
+    }
+
+    for (auto& [chunk_id, score] : fusion) {
+        const SearchHit& hit = hits_by_chunk.at(chunk_id);
+        if (is_preamble(hit.section)) {
+            score *= kPreambleFusionFactor;
+        }
+        if (definition && is_definition_section(hit.section)) {
+            score *= kDefinitionFusionFactor;
+        }
+        if (question_names_document(hit.title, terms)) {
+            score *= kNamedDocumentFusionFactor;
+        }
+    }
+
+    std::vector<std::pair<double, int>> ordered;
+    ordered.reserve(fusion.size());
+    for (const auto& [chunk_id, score] : fusion) {
+        ordered.emplace_back(score, chunk_id);
+    }
+    std::sort(ordered.begin(), ordered.end(), [](const auto& left, const auto& right) {
+        return left.first != right.first ? left.first > right.first : left.second < right.second;
+    });
 
     std::vector<SearchHit> hits;
-    if (best_coverage + kEpsilon < required) {
-        return hits;
-    }
-
-    const double floor = std::max(required, best_coverage - options.maximum_coverage_gap);
     std::unordered_map<std::string, std::size_t> per_document;
-    for (SearchHit& candidate : candidates) {
+    for (const auto& [score, chunk_id] : ordered) {
         if (hits.size() >= options.limit) {
             break;
         }
-        if (candidate.coverage + kEpsilon < floor) {
-            continue;
-        }
-        std::size_t& count = per_document[candidate.document_id];
+        SearchHit& hit = hits_by_chunk.at(chunk_id);
+        std::size_t& count = per_document[hit.document_id];
         if (count < options.per_document) {
             ++count;
-            hits.push_back(std::move(candidate));
+            hits.push_back(std::move(hit));
         }
     }
 

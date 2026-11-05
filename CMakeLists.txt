@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.21)
-project(Vigie VERSION 0.3.0 LANGUAGES C CXX)
+project(Vigie VERSION 0.4.0 LANGUAGES C CXX)
+
+if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
+    message(FATAL_ERROR "Vigie se compile en 64 bits : ouvre un environnement Visual Studio x64.")
+endif()
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -86,6 +90,27 @@ else()
     )
 endif()
 
+# llama.cpp calcule localement les vecteurs de sens des passages et des questions.
+set(LLAMA_BUILD_COMMON OFF CACHE BOOL "" FORCE)
+set(LLAMA_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(LLAMA_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
+set(LLAMA_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(LLAMA_BUILD_SERVER OFF CACHE BOOL "" FORCE)
+set(LLAMA_BUILD_APP OFF CACHE BOOL "" FORCE)
+set(LLAMA_OPENSSL OFF CACHE BOOL "" FORCE)
+set(GGML_OPENMP OFF CACHE BOOL "" FORCE)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+    llama_cpp
+    GIT_REPOSITORY https://github.com/ggml-org/llama.cpp.git
+    GIT_TAG b12000
+    GIT_SHALLOW TRUE
+)
+# llama.cpp se compile en C++17 : sous Visual Studio, le C++20 casse ses chaînes u8"...".
+set(CMAKE_CXX_STANDARD 17)
+FetchContent_MakeAvailable(llama_cpp)
+set(CMAKE_CXX_STANDARD 20)
+
 function(vigie_compile_options target)
     if(MSVC)
         target_compile_options(${target} PRIVATE /W4 /utf-8 /bigobj)
@@ -103,6 +128,7 @@ endfunction()
 # Lecture, découpage et stockage du corpus.
 add_library(vigie_corpus STATIC
     src/corpus/chunker.cpp
+    src/corpus/embedder.cpp
     src/corpus/extract_html.cpp
     src/corpus/extract_pdf.cpp
     src/corpus/index_store.cpp
@@ -111,7 +137,7 @@ add_library(vigie_corpus STATIC
 )
 target_include_directories(vigie_corpus PUBLIC src)
 target_include_directories(vigie_corpus SYSTEM PRIVATE "${nlohmann_json_header_SOURCE_DIR}")
-target_link_libraries(vigie_corpus PUBLIC vigie_sqlite vigie_pdfium)
+target_link_libraries(vigie_corpus PUBLIC vigie_sqlite vigie_pdfium llama)
 vigie_compile_options(vigie_corpus)
 
 function(vigie_copy_pdfium target)

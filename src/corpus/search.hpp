@@ -21,7 +21,8 @@ struct SearchHit {
     std::string section;
     std::optional<int> page;
     std::string text;
-    double coverage = 0.0;
+    double coverage = 0.0;    // Part de la question retrouvée par mots-clés.
+    double similarity = 0.0;  // Proximité de sens avec la question.
 };
 
 struct SearchOptions {
@@ -30,6 +31,10 @@ struct SearchOptions {
     std::size_t per_document = 3;
     double minimum_coverage = 0.6;
     double maximum_coverage_gap = 0.2;
+    double minimum_similarity = 0.86;
+    double confirmed_keyword_coverage = 0.7;
+    double maximum_similarity_gap = 0.03;
+    double rank_fusion_constant = 30.0;
 };
 
 // Levée si la base n'existe pas ou doit être reconstruite avec vigie_index.
@@ -41,15 +46,21 @@ public:
 // Extrait les mots utiles d'une question : sans mots vides, accents ni pluriel simple.
 std::vector<std::string> extract_terms(std::string_view question);
 
+class Embedder;
+
 class SearchIndex {
 public:
-    explicit SearchIndex(std::filesystem::path database_path);
+    // Sans modèle de vectorisation, la recherche se limite aux mots-clés.
+    explicit SearchIndex(std::filesystem::path database_path, const Embedder* embedder = nullptr);
 
     // Une liste vide signifie qu'aucun passage ne répond assez à la question.
     std::vector<SearchHit> search(std::string_view question, const SearchOptions& options = {}) const;
 
+    bool uses_semantic_search() const { return embedder_ != nullptr; }
+
 private:
     std::filesystem::path database_path_;
+    const Embedder* embedder_;
 };
 
 }  // namespace vigie::corpus

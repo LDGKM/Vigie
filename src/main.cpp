@@ -1,16 +1,27 @@
 #include <exception>
 #include <iostream>
+#include <memory>
 
 #include <crow.h>
 
 #include "api/routes.hpp"
 #include "config.hpp"
 #include "core/assistant.hpp"
+#include "corpus/embedder.hpp"
 
 int main() {
     try {
         const vigie::Config config = vigie::load_config();
-        const vigie::Assistant assistant{vigie::corpus::SearchIndex(config.database_path)};
+
+        // Sans modèle, Vigie reste utilisable avec la recherche par mots-clés.
+        std::unique_ptr<vigie::corpus::Embedder> embedder;
+        try {
+            embedder = std::make_unique<vigie::corpus::Embedder>(config.model_path);
+        } catch (const std::exception& error) {
+            std::cerr << "Recherche par le sens desactivee : " << error.what() << std::endl;
+        }
+
+        const vigie::Assistant assistant{vigie::corpus::SearchIndex(config.database_path, embedder.get())};
 
         crow::SimpleApp app;
         vigie::register_routes(app, config, assistant);

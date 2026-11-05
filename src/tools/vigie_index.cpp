@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "corpus/chunker.hpp"
+#include "corpus/embedder.hpp"
 #include "corpus/extract_html.hpp"
 #include "corpus/extract_pdf.hpp"
 #include "corpus/index_store.hpp"
@@ -41,6 +42,13 @@ int main(int argc, char** argv) {
         const fs::path corpus_dir = root / "data" / "corpus";
         const fs::path database = root / "data" / "index" / "vigie.db";
 
+        const std::string model_name = "multilingual-e5-small-f16.gguf";
+        const fs::path model_path = root / "models" / model_name;
+        if (!fs::exists(model_path)) {
+            throw std::runtime_error("modele introuvable : lance scripts\\download_model.ps1");
+        }
+        const Embedder embedder(model_path);
+
         std::vector<IndexedDocument> documents;
         std::size_t total_chunks = 0;
         int failures = 0;
@@ -52,9 +60,20 @@ int main(int argc, char** argv) {
                 if (chunks.empty()) {
                     throw std::runtime_error("aucun texte extrait");
                 }
-                std::cout << "[OK]    " << record.id << " : " << chunks.size() << " passages\n";
+
+                std::vector<std::vector<float>> vectors;
+                vectors.reserve(chunks.size());
+                for (const Chunk& chunk : chunks) {
+                    vectors.push_back(embedder.embed_passage(chunk.section + " : " + chunk.text));
+                    if (vectors.size() % 50 == 0) {
+                        std::cout << "        " << record.id << " : " << vectors.size() << '/' << chunks.size()
+                                  << std::endl;
+                    }
+                }
+
+                std::cout << "[OK]    " << record.id << " : " << chunks.size() << " passages" << std::endl;
                 total_chunks += chunks.size();
-                documents.push_back({record, std::move(chunks)});
+                documents.push_back({record, std::move(chunks), std::move(vectors)});
             } catch (const std::exception& error) {
                 std::cout << "[ECHEC] " << record.id << " : " << error.what() << '\n';
                 ++failures;
@@ -66,7 +85,7 @@ int main(int argc, char** argv) {
             return 1;
         }
 
-        write_index(database, documents);
+        write_index(database, documents, model_name);
         std::cout << documents.size() << " documents, " << total_chunks << " passages : "
                   << database.string() << '\n';
     } catch (const std::exception& error) {

@@ -1,10 +1,13 @@
+#include <cmath>
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
+#include <numeric>
 #include <string>
 #include <vector>
 
 #include "corpus/chunker.hpp"
+#include "corpus/embedder.hpp"
 #include "corpus/extract_html.hpp"
 #include "corpus/index_store.hpp"
 #include "corpus/search.hpp"
@@ -147,13 +150,13 @@ void test_failed_index_keeps_previous_database() {
 
     DocumentRecord record;
     record.id = "doc";
-    const std::vector<IndexedDocument> valid = {{record, {{0, "S", std::nullopt, "texte"}}}};
-    write_index(directory / "vigie.db", valid);
+    const std::vector<IndexedDocument> valid = {{record, {{0, "S", std::nullopt, "texte"}}, {{1.0F, 0.0F}}}};
+    write_index(directory / "vigie.db", valid, "test");
 
     const auto size = std::filesystem::file_size(directory / "vigie.db");
     bool failed = false;
     try {
-        write_index(directory / "vigie.db", {{record, {}}, {record, {}}});
+        write_index(directory / "vigie.db", {{record, {}, {}}, {record, {}, {}}}, "test");
     } catch (const std::exception&) {
         failed = true;
     }
@@ -201,13 +204,17 @@ void test_search() {
         return record;
     };
 
+    const std::vector<float> vector = {1.0F, 0.0F};
     write_index(directory / "vigie.db",
                 {{make_record("mica", "Règlement sur les crypto-actifs (MiCA)"),
                   {{0, "Préambule", std::nullopt, "Les jetons de monnaie électronique sont encadrés."},
                    {1, "Article 3 : Définitions", std::nullopt, "Un jeton de monnaie électronique est un crypto-actif."},
-                   {2, "Article 9", std::nullopt, "Le livre blanc est publié par l’émetteur."}}},
+                   {2, "Article 9", std::nullopt, "Le livre blanc est publié par l’émetteur."}},
+                  {vector, vector, vector}},
                  {make_record("guide", "Guide des paiements"),
-                  {{0, "Page 2", 2, "Les agrégateurs de comptes regroupent les informations."}}}});
+                  {{0, "Page 2", 2, "Les agrégateurs de comptes regroupent les informations."}},
+                  {vector}}},
+                "test");
 
     const SearchIndex index(directory / "vigie.db");
 
@@ -228,6 +235,28 @@ void test_search() {
     std::filesystem::remove_all(directory);
 }
 
+// Ce test utilise le vrai modèle : indique son chemin dans VIGIE_TEST_MODEL pour l'activer.
+void test_embedder() {
+    const char* model_path = std::getenv("VIGIE_TEST_MODEL");
+    if (model_path == nullptr) {
+        std::cout << "Test du modele ignore.\n";
+        return;
+    }
+
+    const Embedder embedder{std::filesystem::path(model_path)};
+    const auto query = embedder.embed_query("obligations de transparence des chatbots");
+    const auto related = embedder.embed_passage("Les personnes sont informées qu'elles interagissent avec un système d'IA.");
+    const auto unrelated = embedder.embed_passage("Faire cuire une tarte aux pommes pendant trente minutes.");
+
+    const auto dot = [](const std::vector<float>& left, const std::vector<float>& right) {
+        return std::inner_product(left.begin(), left.end(), right.begin(), 0.0F);
+    };
+
+    check(query.size() == embedder.dimensions(), "dimension du vecteur");
+    check(std::abs(dot(query, query) - 1.0F) < 0.001F, "vecteur normalise");
+    check(dot(query, related) > dot(query, unrelated), "sens proche mieux classe");
+}
+
 }  // namespace
 
 int main() {
@@ -239,6 +268,7 @@ int main() {
     test_failed_index_keeps_previous_database();
     test_extract_terms();
     test_search();
+    test_embedder();
 
     if (failures == 0) {
         std::cout << "Tous les tests sont passes.\n";
