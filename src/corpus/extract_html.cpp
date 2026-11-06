@@ -222,6 +222,32 @@ std::string_view main_content(std::string_view html) {
     return html.substr(open, close - open);
 }
 
+// Ces titres ouvrent la fin de page : liens, téléchargements et formulaires, sans contenu utile.
+bool ends_content(std::string_view heading) {
+    constexpr std::array<std::string_view, 4> kClosingHeadings = {
+        "Lire également",
+        "Télécharger l'intégralité de la publication",
+        "Qui peut m'aider ?",
+        "Textes de loi et références",
+    };
+    return std::find(kClosingHeadings.begin(), kClosingHeadings.end(), heading) != kClosingHeadings.end();
+}
+
+// Boutons et messages de partage ou d'abonnement, présents sur chaque fiche Service Public.
+bool is_page_chrome(std::string_view text) {
+    constexpr std::array<std::string_view, 3> kWholeTexts = {"Focus", "Tout déplier", "Image image"};
+    constexpr std::array<std::string_view, 15> kPrefixes = {
+        "Ajouter à mes favoris",     "Partager la page",     "Ce sujet vous intéresse",
+        "Ce sujet a été ajouté",     "Vous recevrez un courriel", "Votre abonnement",
+        "Vous devez vous connecter", "Pour vous abonner",    "Vous serez alerté",
+        "Fermer",                    "Facebook",             "Copier le lien",
+        "Lien copié",                "Ajoutez cette page",   "Vous pouvez à tout moment",
+    };
+    return std::find(kWholeTexts.begin(), kWholeTexts.end(), text) != kWholeTexts.end() ||
+           std::any_of(kPrefixes.begin(), kPrefixes.end(),
+                       [text](std::string_view prefix) { return starts_with(text, prefix); });
+}
+
 class SectionBuilder {
 public:
     std::vector<Paragraph> take() { return std::move(paragraphs_); }
@@ -247,11 +273,10 @@ public:
         const std::string text = clean_text(buffer_);
         buffer_.clear();
         const std::string block_class = std::exchange(block_class_, {});
-        const int heading = std::exchange(heading_level_, 0);
         if (text.empty()) {
-            return;
+            return;  // Un titre peut commencer par des blocs vides : il reste en attente.
         }
-        handle(text, block_class, heading);
+        handle(text, block_class, std::exchange(heading_level_, 0));
     }
 
 private:
@@ -260,11 +285,18 @@ private:
         "oj-ti-section-2", "oj-note", "oj-signatory", "oj-final",
     };
 
-    void handle(const std::string& text, const std::string& block_class, int heading) {
+    void handle(std::string text, const std::string& block_class, int heading) {
+        // Reste des infobulles de Service Public, invisibles sur la page.
+        for (const std::string_view marker : {std::string_view(": titleContent"), std::string_view("titleContent")}) {
+            for (std::size_t at = text.find(marker); at != std::string::npos; at = text.find(marker, at)) {
+                text.erase(at, marker.size());
+            }
+        }
         if (block_class == "oj-note" || block_class == "oj-signatory" || block_class == "oj-final") {
             return;
         }
-        if (starts_with(block_class, "oj-hd") || starts_with(text, "Fait à ")) {
+        if (starts_with(block_class, "oj-hd") || starts_with(text, "Fait à ") ||
+            is_page_chrome(text)) {
             return;
         }
         // Seuls les vrais articles ont un conteneur art_N. Un titre sans conteneur est un article
@@ -298,7 +330,7 @@ private:
             return;
         }
         if (heading > 0) {
-            if (text == "Lire également") {
+            if (ends_content(text)) {
                 finished_ = true;
                 return;
             }
@@ -412,6 +444,9 @@ std::vector<Paragraph> extract_html(std::string_view html) {
 
         if (contains(kBlockElements, tag.name)) {
             builder.flush();
+            if (tag.closing && tag.name.size() == 2 && tag.name[0] == 'h' && tag.name[1] >= '1' && tag.name[1] <= '4') {
+                builder.set_heading(0);
+            }
             if (!tag.closing) {
                 if (tag.name == "div" && is_article_id(tag.id)) {
                     builder.open_article_container();

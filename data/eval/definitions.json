@@ -1,0 +1,348 @@
+{
+  "version": 1,
+  "note": "Questions de définition sur les notions de finance, écrites avant la mesure. Le passage doit venir du bon document et contenir le texte de preuve.",
+  "questions": [
+    {
+      "id": "def-crypto",
+      "question": "Qu'est-ce qu'un crypto-actif ?",
+      "expected": {
+        "document": "bdf-abc-crypto-actifs-et-stable-coins",
+        "sections": [
+          "*"
+        ],
+        "evidence": "actif numérique"
+      }
+    },
+    {
+      "id": "def-stablecoin",
+      "question": "À quoi sert un stablecoin ?",
+      "expected": {
+        "document": "bdf-abc-crypto-actifs-et-stable-coins",
+        "sections": [
+          "*"
+        ],
+        "evidence": "plus stable|réserve d’actifs"
+      }
+    },
+    {
+      "id": "def-bitcoin",
+      "question": "Le bitcoin est-il une vraie monnaie ?",
+      "expected": {
+        "document": "bdf-abc-le-bitcoin",
+        "sections": [
+          "*"
+        ],
+        "evidence": "monnaie"
+      }
+    },
+    {
+      "id": "def-blockchain",
+      "question": "C'est quoi la blockchain ?",
+      "expected": {
+        "document": "bdf-abc-la-blockchain",
+        "sections": [
+          "*"
+        ],
+        "evidence": "chaîne de blocs"
+      }
+    },
+    {
+      "id": "def-inflation",
+      "question": "Que veut dire inflation ?",
+      "expected": {
+        "document": "bdf-abc-inflation-et-deflation",
+        "sections": [
+          "*"
+        ],
+        "evidence": "hausse durable"
+      }
+    },
+    {
+      "id": "def-monnaie",
+      "question": "Quelles sont les fonctions de la monnaie ?",
+      "expected": {
+        "document": "bdf-abc-monnaie-de-quoi-parle-t-on",
+        "sections": [
+          "*"
+        ],
+        "evidence": "trois fonctions"
+      }
+    },
+    {
+      "id": "def-banque-centrale",
+      "question": "À quoi sert une banque centrale ?",
+      "expected": {
+        "document": "bdf-abc-quest-ce-quune-banque-centrale",
+        "sections": [
+          "*"
+        ],
+        "evidence": "politique monétaire"
+      }
+    },
+    {
+      "id": "def-taux-directeur",
+      "question": "Qu'est-ce qu'un taux directeur ?",
+      "expected": {
+        "document": "bdf-abc-les-taux-directeurs",
+        "sections": [
+          "*"
+        ],
+        "evidence": "prêts qu’elle accorde"
+      }
+    },
+    {
+      "id": "def-surendettement",
+      "question": "Quand parle-t-on de surendettement ?",
+      "expected": {
+        "document": "bdf-abc-le-surendettement",
+        "sections": [
+          "*"
+        ],
+        "evidence": "ne parvient plus"
+      }
+    },
+    {
+      "id": "def-titrisation",
+      "question": "Comment expliquer la titrisation simplement ?",
+      "expected": {
+        "document": "bdf-abc-titrisation",
+        "sections": [
+          "*"
+        ],
+        "evidence": "titres financiers"
+      }
+    },
+    {
+      "id": "def-bulle",
+      "question": "C'est quoi une bulle spéculative ?",
+      "expected": {
+        "document": "bdf-abc-bulle-speculative",
+        "sections": [
+          "*"
+        ],
+        "evidence": "valeur intrinsèque"
+      }
+    },
+    {
+      "id": "def-fintech",
+      "question": "Que signifie fintech ?",
+      "expected": {
+        "document": "bdf-abc-fintechs",
+        "sections": [
+          "*"
+        ],
+        "evidence": "Finance"
+      }
+    },
+    {
+      "id": "def-change",
+      "question": "Qu'est-ce que le taux de change ?",
+      "expected": {
+        "document": "bdf-abc-le-taux-de-change",
+        "sections": [
+          "*"
+        ],
+        "evidence": "prix d’une monnaie"
+      }
+    },
+    {
+      "id": "def-qe",
+      "question": "En quoi consiste le quantitative easing ?",
+      "expected": {
+        "document": "bdf-abc-quantitative-easing",
+        "sections": [
+          "*"
+        ],
+        "evidence": "assouplissement quantitatif"
+      }
+    },
+    {
+      "id": "def-livreta-plafond",
+      "question": "Combien peut-on mettre au maximum sur un livret A ?",
+      "expected": {
+        "document": "sp-f2365",
+        "sections": [
+          "*"
+        ],
+        "evidence": "22 950"
+      }
+    },
+    {
+      "id": "def-livreta-impot",
+      "question": "Paie-t-on des impôts sur les intérêts du livret A ?",
+      "expected": {
+        "document": "sp-f2365",
+        "sections": [
+          "*"
+        ],
+        "evidence": "impôt"
+      }
+    },
+    {
+      "id": "def-pel-cel",
+      "question": "Quelle différence entre un PEL et un CEL ?",
+      "expected": {
+        "document": "sp-f33923",
+        "sections": [
+          "*"
+        ],
+        "evidence": "PEL"
+      }
+    },
+    {
+      "id": "def-pea",
+      "question": "Qu'est-ce qu'un PEA ?",
+      "expected": {
+        "document": "sp-f2385",
+        "sections": [
+          "*"
+        ],
+        "evidence": "actions"
+      }
+    },
+    {
+      "id": "def-pea-plafond",
+      "question": "Quel est le plafond de versement d'un PEA ?",
+      "expected": {
+        "document": "sp-f2385",
+        "sections": [
+          "*"
+        ],
+        "evidence": "150 000"
+      }
+    },
+    {
+      "id": "def-taeg",
+      "question": "Que représente le TAEG d'un crédit ?",
+      "expected": {
+        "document": "sp-f2456",
+        "sections": [
+          "*"
+        ],
+        "evidence": "TAEG|taux annuel effectif global"
+      }
+    },
+    {
+      "id": "def-decouvert",
+      "question": "Qu'est-ce qu'un découvert autorisé ?",
+      "expected": {
+        "document": "sp-f31423",
+        "sections": [
+          "*"
+        ],
+        "evidence": "découvert"
+      }
+    },
+    {
+      "id": "def-revolving",
+      "question": "Comment fonctionne un crédit renouvelable ?",
+      "expected": {
+        "document": "sp-f2436",
+        "sections": [
+          "*"
+        ],
+        "evidence": "renouvelable"
+      }
+    },
+    {
+      "id": "def-droit-compte",
+      "question": "Que faire si une banque refuse de m'ouvrir un compte ?",
+      "expected": {
+        "document": "sp-f2417",
+        "sections": [
+          "*"
+        ],
+        "evidence": "droit au compte"
+      }
+    },
+    {
+      "id": "def-amf-frais",
+      "question": "Quels frais peut-on payer sur un placement financier ?",
+      "expected": {
+        "document": "amf-frais",
+        "sections": [
+          "*"
+        ],
+        "evidence": "frais"
+      }
+    },
+    {
+      "id": "def-amf-actions",
+      "question": "Pourquoi investir en actions présente-t-il un risque ?",
+      "expected": {
+        "document": "amf-actions",
+        "sections": [
+          "*"
+        ],
+        "evidence": "risque"
+      }
+    },
+    {
+      "id": "def-amf-fonds",
+      "question": "Qu'est-ce qu'un fonds d'investissement ?",
+      "expected": {
+        "document": "amf-fonds",
+        "sections": [
+          "*"
+        ],
+        "evidence": "fonds"
+      }
+    },
+    {
+      "id": "def-amf-av",
+      "question": "Comment fonctionne une assurance-vie ?",
+      "expected": {
+        "document": "amf-assurance-vie",
+        "sections": [
+          "*"
+        ],
+        "evidence": "assurance"
+      }
+    },
+    {
+      "id": "def-pfu",
+      "question": "Comment sont imposés les revenus de placements ?",
+      "expected": {
+        "document": "sp-f2613",
+        "sections": [
+          "*"
+        ],
+        "evidence": "Prélèvement forfaitaire unique"
+      }
+    }
+  ],
+  "out_of_corpus": [
+    {
+      "id": "defh-01",
+      "question": "Quel est le cours du bitcoin aujourd'hui ?"
+    },
+    {
+      "id": "defh-02",
+      "question": "Dois-je acheter de l'or maintenant ?"
+    },
+    {
+      "id": "defh-03",
+      "question": "Quelle est la meilleure banque en ligne ?"
+    },
+    {
+      "id": "defh-04",
+      "question": "Où en est le CAC 40 ce matin ?"
+    },
+    {
+      "id": "defh-05",
+      "question": "Combien coûte une assurance auto ?"
+    },
+    {
+      "id": "defh-06",
+      "question": "Qui préside la BCE ?"
+    },
+    {
+      "id": "defh-07",
+      "question": "Comment faire des crêpes ?"
+    },
+    {
+      "id": "defh-08",
+      "question": "Quelle assurance vie me conseilles-tu ?"
+    }
+  ]
+}

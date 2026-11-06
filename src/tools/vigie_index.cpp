@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -35,6 +36,13 @@ std::vector<Paragraph> extract(const DocumentRecord& record, const fs::path& pat
     return extract_html(read_file(path));
 }
 
+// Une fiche à onglets répète le même texte : un doublon prendrait la place d'un autre passage.
+std::vector<Chunk> without_duplicates(std::vector<Chunk> chunks) {
+    std::set<std::string> seen;
+    std::erase_if(chunks, [&seen](const Chunk& chunk) { return !seen.insert(chunk.section + '\n' + chunk.text).second; });
+    return chunks;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -60,7 +68,7 @@ int main(int argc, char** argv) {
         for (const DocumentRecord& record : load_manifest(corpus_dir / "sources.json")) {
             const fs::path path = corpus_dir / "raw" / (record.id + "." + record.format);
             try {
-                std::vector<Chunk> chunks = make_chunks(extract(record, path));
+                std::vector<Chunk> chunks = without_duplicates(make_chunks(extract(record, path)));
                 if (chunks.empty()) {
                     throw std::runtime_error("aucun texte extrait");
                 }

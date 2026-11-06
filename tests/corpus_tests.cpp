@@ -263,6 +263,18 @@ void test_embedder() {
 
 }  // namespace
 
+void test_html_headings() {
+    const std::string page =
+        "<main><h1>Livret A</h1><p>Un livret reglemente.</p>"
+        "<h2><button><span><div></div>Quel est le plafond ?</span></button></h2><p>Le plafond est fixe.</p>"
+        "<h2></h2><p>Ce texte reste un paragraphe.</p>"
+        "<h2>Qui peut m&#39;aider ?</h2><p>Formulaire.</p></main>";
+    const auto paragraphs = vigie::corpus::extract_html(page);
+    check(paragraphs.size() == 3, "fin de page ignoree");
+    check(paragraphs.size() > 1 && paragraphs[1].section == "Quel est le plafond ?", "titre avec blocs vides");
+    check(paragraphs.size() > 2 && paragraphs[2].text == "Ce texte reste un paragraphe.", "titre vide sans effet");
+}
+
 void test_answer_check() {
     vigie::corpus::SearchHit first;
     first.title = "Directive";
@@ -322,6 +334,7 @@ int main() {
     test_search();
     test_embedder();
     test_answer_check();
+    test_html_headings();
 
     if (failures == 0) {
         std::cout << "Tous les tests sont passes.\n";

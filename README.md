@@ -79,7 +79,7 @@ Pour créer la base `data/index/vigie.db`, lance `vigie_index.exe` depuis Visual
 .\out\build\x64-release\vigie_index.exe
 ```
 
-L'outil lit les 11 documents, les découpe par article, section ou page, calcule leurs vecteurs sur le processeur, puis enregistre le tout. Cette étape prend plusieurs minutes. Si un document pose problème, la base existante n'est pas modifiée. Les tests se lancent avec `.\out\build\x64-release\vigie_tests.exe`.
+L'outil lit les 115 documents, les découpe par article, section ou page, calcule leurs vecteurs sur le processeur, puis enregistre le tout. Cette étape prend plusieurs minutes. Si un document pose problème, la base existante n'est pas modifiée. Les tests se lancent avec `.\out\build\x64-release\vigie_tests.exe`.
 
 ## Structure
 
@@ -116,6 +116,16 @@ Les 86 questions ont aussi été posées à la chaîne complète, avec `Qwen3.5-
 - temps médian : 52 s pour une réponse, 10 s pour un refus par la recherche.
 
 Le contrôle automatique vérifie les citations et les nombres, pas le sens d'une phrase. C'est pourquoi la page rappelle de vérifier la réponse dans les passages cités.
+
+### Base élargie
+
+La base compte 115 documents et 4 521 passages, avec 104 documents pédagogiques ajoutés : 65 fiches de la Banque de France, 33 fiches de Service Public et 6 guides de l'AMF. `data/eval/definitions.json` contient 28 questions de définition et 8 questions hors sujet, écrites avant la mesure.
+
+- définitions : passage correct parmi les 5 premiers pour 89,3 % des questions, aucune refusée, et 8 refus sur 8 pour les questions hors sujet ;
+- anciennes questions : 87,5 % au lieu de 90 % sur le jeu de réglage et 75 % au lieu de 82,1 % sur le jeu de contrôle ;
+- une partie de la baisse vient de Service Public, qui répond à des questions dont la référence attend la DSP2. Sur 6 cas relus, 1 réponse est fausse et 3 sont moins précises.
+
+Les fichiers `questions.json` et `validation.json` ne sont pas corrigés. Cinq de leurs questions hors corpus sont désormais couvertes par la base : le livret A, le PEA, la déclaration en ligne, le PEL et l'assurance vie.
 
 ## Modèles locaux
 
