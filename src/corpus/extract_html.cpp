@@ -236,12 +236,13 @@ bool ends_content(std::string_view heading) {
 // Boutons et messages de partage ou d'abonnement, présents sur chaque fiche Service Public.
 bool is_page_chrome(std::string_view text) {
     constexpr std::array<std::string_view, 3> kWholeTexts = {"Focus", "Tout déplier", "Image image"};
-    constexpr std::array<std::string_view, 15> kPrefixes = {
+    constexpr std::array<std::string_view, 16> kPrefixes = {
         "Ajouter à mes favoris",     "Partager la page",     "Ce sujet vous intéresse",
         "Ce sujet a été ajouté",     "Vous recevrez un courriel", "Votre abonnement",
         "Vous devez vous connecter", "Pour vous abonner",    "Vous serez alerté",
         "Fermer",                    "Facebook",             "Copier le lien",
         "Lien copié",                "Ajoutez cette page",   "Vous pouvez à tout moment",
+        "X Linkedin",
     };
     return std::find(kWholeTexts.begin(), kWholeTexts.end(), text) != kWholeTexts.end() ||
            std::any_of(kPrefixes.begin(), kPrefixes.end(),
@@ -286,6 +287,15 @@ private:
     };
 
     void handle(std::string text, const std::string& block_class, int heading) {
+        // La date est déjà dans la fiche du document : ici, elle cacherait le début du texte.
+        constexpr std::string_view kSignature = "(Premier ministre)";
+        if (starts_with(text, "Vérifié le ")) {
+            const std::size_t end = text.find(kSignature);
+            if (end != std::string::npos) {
+                text.erase(0, end + kSignature.size());
+                text.erase(0, std::min(text.find_first_not_of(' '), text.size()));
+            }
+        }
         // Reste des infobulles de Service Public, invisibles sur la page.
         for (const std::string_view marker : {std::string_view(": titleContent"), std::string_view("titleContent")}) {
             for (std::size_t at = text.find(marker); at != std::string::npos; at = text.find(marker, at)) {

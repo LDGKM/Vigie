@@ -271,6 +271,9 @@ void test_html_headings() {
         "<h2>Qui peut m&#39;aider ?</h2><p>Formulaire.</p></main>";
     const auto paragraphs = vigie::corpus::extract_html(page);
     check(paragraphs.size() == 3, "fin de page ignoree");
+    const auto signed_page = vigie::corpus::extract_html(
+        "<main><p>Vérifié le 01 août 2026 - Service Public (Premier ministre) Le livret est simple.</p></main>");
+    check(signed_page.size() == 1 && signed_page[0].text == "Le livret est simple.", "signature retiree");
     check(paragraphs.size() > 1 && paragraphs[1].section == "Quel est le plafond ?", "titre avec blocs vides");
     check(paragraphs.size() > 2 && paragraphs[2].text == "Ce texte reste un paragraphe.", "titre vide sans effet");
 }

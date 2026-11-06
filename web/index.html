@@ -101,22 +101,40 @@
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       send.disabled = true;
-      show("Vigie cherche dans ses documents et rédige sa réponse. Sur ton PC, cela peut prendre près d'une minute.");
+      show("Vigie cherche dans ses documents.");
 
       try {
-        const response = await fetch("/ask", {
+        const started = await fetch("/ask/start", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ question: question.value }),
         });
-        const data = await response.json();
-        if (!response.ok) {
-          show(data.error.message, true);
+        const job = await started.json();
+        if (!started.ok) {
+          show(job.error.message, true);
           return;
         }
-        show(data.answer);
-        notice.hidden = !(data.status === "found" && data.model);
-        showSources(data.sources);
+
+        let writing = false;
+        for (;;) {
+          await new Promise((resolve) => setTimeout(resolve, 800));
+          const data = await (await fetch(`/ask/job/${job.job}`)).json();
+          if (data.state === "error" || data.error) {
+            show(data.error.message, true);
+            return;
+          }
+          if (data.state === "done") {
+            show(data.answer);
+            notice.hidden = !(data.status === "found" && data.model);
+            showSources(data.sources);
+            return;
+          }
+          if (data.state === "writing" && !writing) {
+            writing = true;
+            show("Passages trouvés. Vigie rédige et vérifie sa réponse.");
+            showSources(data.sources);
+          }
+        }
       } catch {
         show("Impossible de joindre le serveur Vigie.", true);
       } finally {

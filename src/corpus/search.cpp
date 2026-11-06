@@ -5,10 +5,13 @@
 #include <cmath>
 #include <cstddef>
 #include <cstring>
+#include <fstream>
 #include <set>
 #include <sstream>
 #include <unordered_map>
 #include <utility>
+
+#include <json.hpp>
 
 #include "corpus/embedder.hpp"
 #include "corpus/reranker.hpp"
@@ -236,7 +239,16 @@ std::vector<std::string> extract_terms(std::string_view question) {
 }
 
 SearchIndex::SearchIndex(std::filesystem::path database_path, const Embedder* embedder, const Reranker* reranker)
-    : database_path_(std::move(database_path)), embedder_(embedder), reranker_(reranker) {}
+    : database_path_(std::move(database_path)), embedder_(embedder), reranker_(reranker) {
+    std::ifstream file(database_path_.parent_path().parent_path() / "corpus" / "glossary.json", std::ios::binary);
+    if (!file) {
+        return;
+    }
+    const nlohmann::json root = nlohmann::json::parse(file);
+    for (const auto& [term, synonyms] : root.at("terms").items()) {
+        glossary_.push_back({extract_terms(term), synonyms.get<std::vector<std::string>>()});
+    }
+}
 
 std::vector<SearchHit> SearchIndex::search(std::string_view question, const SearchOptions& options) const {
     const std::vector<std::string> terms = extract_terms(question);
@@ -313,6 +325,30 @@ std::vector<SearchHit> SearchIndex::search(std::string_view question, const Sear
     }
     collect(expression, options.candidates);
 
+    // Le glossaire ajoute les mots des textes, sans changer ce que la question exige.
+    std::string expanded_question(question);
+    if (options.use_glossary) {
+        for (const GlossaryEntry& entry : glossary_) {
+            const bool matches = !entry.key_terms.empty() &&
+                                 std::all_of(entry.key_terms.begin(), entry.key_terms.end(), [&](const std::string& key) {
+                                     return std::find(terms.begin(), terms.end(), key) != terms.end();
+                                 });
+            if (!matches) {
+                continue;
+            }
+            for (const std::string& synonym : entry.synonyms) {
+                expanded_question += ' ' + synonym;
+                std::string all_words;
+                for (const std::string& word : extract_terms(synonym)) {
+                    all_words += (all_words.empty() ? "" : " AND ") + match_expression(word);
+                }
+                if (!all_words.empty()) {
+                    collect(all_words, options.candidates);
+                }
+            }
+        }
+    }
+
     // Si la question nomme un texte, on cherche aussi les autres mots à l'intérieur de ce texte.
     if (terms.size() >= 2) {
         for (const std::string& named : terms) {
@@ -352,7 +388,7 @@ std::vector<SearchHit> SearchIndex::search(std::string_view question, const Sear
 
     std::vector<ChunkSimilarity> nearest;
     if (embedder_ != nullptr) {
-        nearest = nearest_chunks(database, embedder_->embed_query(question), options.candidates);
+        nearest = nearest_chunks(database, embedder_->embed_query(expanded_question), options.candidates);
     }
     const double best_similarity = nearest.empty() ? 0.0 : nearest.front().similarity;
 
@@ -438,7 +474,12 @@ std::vector<SearchHit> SearchIndex::search(std::string_view question, const Sear
         ordered.resize(std::min(ordered.size(), options.rerank_candidates));
         for (auto& [score, chunk_id] : ordered) {
             SearchHit& hit = hits_by_chunk.at(chunk_id);
-            hit.rerank_score = reranker_->score(question, hit.section + " : " + hit.text);
+            std::string_view text = hit.text;
+            if (options.rerank_text_limit > 0 && text.size() > options.rerank_text_limit) {
+                // Coupe sur un espace pour ne pas séparer un caractère accentué.
+                text = text.substr(0, text.rfind(' ', options.rerank_text_limit));
+            }
+            hit.rerank_score = reranker_->score(expanded_question, hit.title + " : " + hit.section + " : " + std::string(text));
             score = hit.rerank_score;
         }
         std::stable_sort(ordered.begin(), ordered.end(),

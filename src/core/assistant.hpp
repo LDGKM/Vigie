@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <optional>
 #include <string>
 #include <vector>
@@ -37,8 +38,11 @@ public:
     // Sans générateur, Vigie affiche les passages retrouvés sans les reformuler.
     Assistant(corpus::SearchIndex index, const llm::Generator* generator);
 
+    using PassagesFound = std::function<void(const std::vector<Source>&)>;
+
     // Lève corpus::IndexUnavailable si la base documentaire n'est pas prête.
-    Answer answer(const std::string& question) const;
+    // on_passages est appelé dès la fin de la recherche, avant la rédaction.
+    Answer answer(const std::string& question, const PassagesFound& on_passages = {}) const;
 
 private:
     corpus::SearchIndex index_;

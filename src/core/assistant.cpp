@@ -33,7 +33,7 @@ std::vector<Source> to_sources(const std::vector<corpus::SearchHit>& hits) {
 Assistant::Assistant(corpus::SearchIndex index, const llm::Generator* generator)
     : index_(std::move(index)), generator_(generator) {}
 
-Answer Assistant::answer(const std::string& question) const {
+Answer Assistant::answer(const std::string& question, const PassagesFound& on_passages) const {
     std::vector<corpus::SearchHit> hits = index_.search(question);
     const std::string engine = index_.uses_reranking() ? "reranked" : index_.uses_semantic_search() ? "hybrid" : "keywords";
 
@@ -49,6 +49,9 @@ Answer Assistant::answer(const std::string& question) const {
 
     hits.resize(std::min(hits.size(), kPassagesForAnswer));
     const std::string model = generator_->name();
+    if (on_passages) {
+        on_passages(to_sources(hits));
+    }
 
     std::string text;
     CheckedAnswer checked;

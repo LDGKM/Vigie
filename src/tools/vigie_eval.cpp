@@ -106,6 +106,10 @@ int main(int argc, char** argv) {
                 rerank = false;
             } else if (argument == "--candidates" && i + 1 < argc) {
                 options.rerank_candidates = static_cast<std::size_t>(std::stoul(argv[++i]));
+            } else if (argument == "--no-glossary") {
+                options.use_glossary = false;
+            } else if (argument == "--rerank-chars" && i + 1 < argc) {
+                options.rerank_text_limit = static_cast<std::size_t>(std::stoul(argv[++i]));
             } else if (argument == "--questions" && i + 1 < argc) {
                 questions_file = argv[++i];
             } else if (argument == "--min-similarity" && i + 1 < argc) {

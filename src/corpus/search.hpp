@@ -36,8 +36,10 @@ struct SearchOptions {
     double confirmed_keyword_coverage = 0.7;
     double maximum_similarity_gap = 0.03;
     double rank_fusion_constant = 30.0;
-    std::size_t rerank_candidates = 10;
+    std::size_t rerank_candidates = 20;
     double minimum_rerank_score = -3.0;
+    bool use_glossary = true;
+    std::size_t rerank_text_limit = 600;  // Longueur lue par le reclasseur, 0 pour tout lire.
 };
 
 // Levée si la base n'existe pas ou doit être reconstruite avec vigie_index.
@@ -51,6 +53,12 @@ std::vector<std::string> extract_terms(std::string_view question);
 
 class Embedder;
 class Reranker;
+
+// Relie un mot courant au vocabulaire des textes. Il élargit la recherche et ne donne aucune réponse.
+struct GlossaryEntry {
+    std::vector<std::string> key_terms;
+    std::vector<std::string> synonyms;
+};
 
 class SearchIndex {
 public:
@@ -68,6 +76,7 @@ private:
     std::filesystem::path database_path_;
     const Embedder* embedder_;
     const Reranker* reranker_;
+    std::vector<GlossaryEntry> glossary_;  // Lu dans data/corpus/glossary.json, s'il existe.
 };
 
 }  // namespace vigie::corpus

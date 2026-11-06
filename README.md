@@ -127,6 +127,23 @@ La base compte 115 documents et 4 521 passages, avec 104 documents pédagogiques
 
 Les fichiers `questions.json` et `validation.json` ne sont pas corrigés. Cinq de leurs questions hors corpus sont désormais couvertes par la base : le livret A, le PEA, la déclaration en ligne, le PEL et l'assurance vie.
 
+### Réponses plus directes
+
+La consigne demande maintenant une réponse dès la première phrase, sans ajout hors sujet, et interdit de mélanger les cas. Le titre du document entre aussi dans le reclassement. Mesures sur la chaîne complète, avec 2 cœurs :
+
+- jeu de contrôle : 26 réponses rédigées sur 28, 1 non confirmée et 1 refusée. La relecture relève 2 réponses fausses et 1 imprécise ;
+- définitions : 28 réponses sur 28, dont 1 fausse et 2 faibles ;
+- questions hors sujet et demandes de conseil : aucun conseil d'achat. Les 5 questions redevenues couvertes par la base reçoivent une réponse documentaire ;
+- temps médian d'une réponse rédigée : 49 s. Recherche seule sur le jeu de contrôle : 78,6 % dans les 5 premiers.
+
+### Recherche et affichage
+
+- Le reclasseur lit maintenant 20 candidats, limités à leurs 600 premiers caractères. Le titre du document fait partie de ce qu'il lit.
+- `data/corpus/glossary.json` relie le vocabulaire courant à celui des textes, par exemple « cryptomonnaie » à « crypto-actif ». Il élargit seulement la recherche. `vigie_eval.exe --no-glossary` mesure la recherche sans lui.
+- Questions de réglage, passage correct parmi les 5 premiers : 95 % au lieu de 90 %. Définitions : 100 % au lieu de 92,9 %.
+- Pour une définition, la réponse explique aussi le fonctionnement ou l'usage, si les extraits le disent.
+- La page affiche les passages trouvés dès la fin de la recherche, puis la réponse une fois vérifiée. Le texte n'est jamais montré avant le contrôle. L'API correspondante est `POST /ask/start`, puis `GET /ask/job/<id>`. `POST /ask` reste disponible.
+
 ## Modèles locaux
 
 - Vectorisation : `bge-m3`, créé par BAAI sous licence MIT, dans [une conversion GGUF publique](https://huggingface.co/lm-kit/bge-m3-gguf).

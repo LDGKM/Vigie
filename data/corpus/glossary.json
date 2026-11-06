@@ -1,0 +1,98 @@
+{
+  "version": 1,
+  "note": "Relie le vocabulaire courant à celui des textes. Ce fichier élargit la recherche et ne donne aucune réponse.",
+  "terms": {
+    "cryptomonnaie": [
+      "crypto-actif"
+    ],
+    "bitcoin": [
+      "crypto-actif"
+    ],
+    "plateforme crypto": [
+      "prestataire de services sur crypto-actifs"
+    ],
+    "portefeuille crypto": [
+      "conservation de crypto-actifs"
+    ],
+    "surveillance humaine": [
+      "contrôle humain"
+    ],
+    "chatbot": [
+      "système d'IA",
+      "interagir avec une personne physique"
+    ],
+    "reconnaissance faciale": [
+      "identification biométrique"
+    ],
+    "données personnelles": [
+      "données à caractère personnel"
+    ],
+    "droit à l'oubli": [
+      "droit à l'effacement"
+    ],
+    "DPO": [
+      "délégué à la protection des données"
+    ],
+    "fuite de données": [
+      "violation de données à caractère personnel"
+    ],
+    "cyberattaque": [
+      "incident majeur lié aux TIC"
+    ],
+    "panne informatique": [
+      "incident lié aux TIC"
+    ],
+    "prestataire informatique": [
+      "prestataire tiers de services TIC"
+    ],
+    "carte volée": [
+      "instrument de paiement perdu ou volé",
+      "opération de paiement non autorisée"
+    ],
+    "carte perdue": [
+      "instrument de paiement perdu ou volé"
+    ],
+    "double authentification": [
+      "authentification forte"
+    ],
+    "agrégateur": [
+      "service d'information sur les comptes"
+    ],
+    "interdit bancaire": [
+      "fichier central des chèques"
+    ],
+    "livret bleu": [
+      "livret A"
+    ],
+    "assurance vie": [
+      "assurance-vie"
+    ],
+    "prêt": [
+      "crédit"
+    ],
+    "revolving": [
+      "crédit renouvelable"
+    ],
+    "TAEG": [
+      "taux annuel effectif global"
+    ],
+    "flat tax": [
+      "prélèvement forfaitaire unique"
+    ],
+    "PFU": [
+      "prélèvement forfaitaire unique"
+    ],
+    "bourse": [
+      "marchés financiers"
+    ],
+    "arnaque": [
+      "escroquerie"
+    ],
+    "société suspecte": [
+      "liste noire"
+    ],
+    "BCE": [
+      "Banque centrale européenne"
+    ]
+  }
+}
