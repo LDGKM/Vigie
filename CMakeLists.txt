@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(Vigie VERSION 0.5.0 LANGUAGES C CXX)
+project(Vigie VERSION 0.6.0 LANGUAGES C CXX)
 
 if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "Vigie se compile en 64 bits : ouvre un environnement Visual Studio x64.")
@@ -127,6 +127,7 @@ endfunction()
 
 # Lecture, découpage et stockage du corpus.
 add_library(vigie_corpus STATIC
+    src/core/grounding.cpp
     src/corpus/chunker.cpp
     src/corpus/embedder.cpp
     src/corpus/extract_html.cpp
@@ -135,6 +136,7 @@ add_library(vigie_corpus STATIC
     src/corpus/manifest.cpp
     src/corpus/reranker.cpp
     src/corpus/search.cpp
+    src/llm/local_generator.cpp
 )
 target_include_directories(vigie_corpus PUBLIC src)
 target_include_directories(vigie_corpus SYSTEM PRIVATE "${nlohmann_json_header_SOURCE_DIR}")

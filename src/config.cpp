@@ -13,6 +13,7 @@ Config load_config() {
     config.database_path = std::string(VIGIE_DEFAULT_ROOT) + "/data/index/vigie.db";
     config.model_path = std::string(VIGIE_DEFAULT_ROOT) + "/models/bge-m3-Q4_K_M.gguf";
     config.reranker_path = std::string(VIGIE_DEFAULT_ROOT) + "/models/bge-reranker-v2-m3-Q4_K_M.gguf";
+    config.llm_path = std::string(VIGIE_DEFAULT_ROOT) + "/models/Qwen3.5-4B-Q4_K_M.gguf";
 
     if (const char* web_dir = std::getenv("VIGIE_WEB_DIR")) {
         config.web_dir = web_dir;
@@ -28,6 +29,10 @@ Config load_config() {
 
     if (const char* reranker_path = std::getenv("VIGIE_RERANKER_PATH")) {
         config.reranker_path = reranker_path;
+    }
+
+    if (const char* llm_path = std::getenv("VIGIE_LLM_PATH")) {
+        config.llm_path = llm_path;
     }
 
     if (const char* port = std::getenv("VIGIE_PORT")) {

@@ -5,10 +5,12 @@
 #include <vector>
 
 #include "corpus/search.hpp"
+#include "llm/generator.hpp"
 
 namespace vigie {
 
 struct Source {
+    int number = 0;  // Numéro cité dans la réponse, par exemple [2].
     std::string document_id;
     std::string title;
     std::string issuer;
@@ -25,20 +27,22 @@ struct Answer {
     std::string text;
     std::vector<Source> sources;
     std::string engine;
-    std::string status;
+    std::string model;   // Vide si aucune IA n'a rédigé la réponse.
+    std::string status;  // found, not_found ou unconfirmed.
 };
 
 // Point d'entrée du moteur : l'API HTTP ne connaît que cette classe.
-// Le modèle de langage viendra rédiger la réponse sans changer les routes.
 class Assistant {
 public:
-    explicit Assistant(corpus::SearchIndex index);
+    // Sans générateur, Vigie affiche les passages retrouvés sans les reformuler.
+    Assistant(corpus::SearchIndex index, const llm::Generator* generator);
 
     // Lève corpus::IndexUnavailable si la base documentaire n'est pas prête.
     Answer answer(const std::string& question) const;
 
 private:
     corpus::SearchIndex index_;
+    const llm::Generator* generator_;
 };
 
 }  // namespace vigie

@@ -2,7 +2,7 @@
 
 Assistant conversationnel de finance numérique fondé sur une architecture RAG, écrit en C++20.
 
-**État actuel :** le serveur, la page web, l'API, l'indexation et la recherche hybride avec reclassement fonctionnent. `/ask` renvoie les passages retrouvés et leurs sources, sans les reformuler : le modèle de langage reste à ajouter.
+**État actuel :** le serveur, la page web, l'API, l'indexation, la recherche et la rédaction par un modèle local fonctionnent. Chaque réponse rédigée est contrôlée : ses citations doivent exister, et ses nombres doivent figurer dans les passages cités. Sinon, Vigie affiche les passages tels quels.
 
 ## Compiler et lancer
 
@@ -59,6 +59,7 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8080/ask `
 | `VIGIE_DB_PATH` | `data/index/vigie.db` | Emplacement de la base documentaire |
 | `VIGIE_MODEL_PATH` | `models/bge-m3-Q4_K_M.gguf` | Modèle de vectorisation |
 | `VIGIE_RERANKER_PATH` | `models/bge-reranker-v2-m3-Q4_K_M.gguf` | Modèle de reclassement |
+| `VIGIE_LLM_PATH` | `models/Qwen3.5-4B-Q4_K_M.gguf` | Modèle de langage |
 
 Le serveur n'écoute que sur `127.0.0.1` : il n'est accessible que depuis ce PC.
 
@@ -86,7 +87,9 @@ L'outil lit les 11 documents, les découpe par article, section ou page, calcule
 src/main.cpp            Démarrage du serveur
 src/config.*            Lecture de la configuration
 src/api/routes.*        Routes HTTP et validation des requêtes
-src/core/assistant.*    Moteur de l'assistant, pour l'instant en démonstration
+src/core/assistant.*    Enchaîne la recherche, la rédaction et le contrôle
+src/core/grounding.*    Prépare le prompt et contrôle la réponse
+src/llm/                Interface du modèle de langage et modèle local
 src/corpus/             Lecture, découpage, vectorisation, stockage et recherche
 src/tools/              Outils d'indexation et de test de la recherche
 tests/                  Tests du corpus
@@ -103,9 +106,21 @@ Les routes dépendent uniquement de la classe `Assistant`. La recherche et le mo
 
 `data/eval/validation.json` contient 28 questions couvertes et 8 questions hors corpus, écrites après le choix du modèle et jamais utilisées pour le réglage. Pour les passer : `vigie_eval.exe --questions validation.json`. Les corriger après coup ou régler les seuils dessus les rendrait inutilisables comme contrôle.
 
+### Réponses rédigées
+
+Les 86 questions ont aussi été posées à la chaîne complète, avec `Qwen3.5-4B`, sur 2 cœurs :
+
+- hors corpus : 18 refus sur 18 ;
+- dans le corpus : 62 réponses rédigées sur 68, 1 réponse non confirmée (passages affichés) et 5 refus à tort ;
+- relecture manuelle des réponses rédigées : 3 fausses et 3 imprécises ;
+- temps médian : 52 s pour une réponse, 10 s pour un refus par la recherche.
+
+Le contrôle automatique vérifie les citations et les nombres, pas le sens d'une phrase. C'est pourquoi la page rappelle de vérifier la réponse dans les passages cités.
+
 ## Modèles locaux
 
 - Vectorisation : `bge-m3`, créé par BAAI sous licence MIT, dans [une conversion GGUF publique](https://huggingface.co/lm-kit/bge-m3-gguf).
+- Langage : `Qwen3.5-4B`, créé par Alibaba Cloud sous licence Apache 2.0, dans [une conversion GGUF publique](https://huggingface.co/unsloth/Qwen3.5-4B-GGUF).
 - Reclassement : `bge-reranker-v2-m3`, créé par BAAI sous licence Apache 2.0, dans [une conversion GGUF publique](https://huggingface.co/gpustack/bge-reranker-v2-m3-GGUF).
 
 Le script `scripts/download_model.ps1` télécharge des révisions précises et vérifie leurs empreintes SHA-256. Si un modèle manque, le serveur démarre avec la méthode de recherche encore disponible.

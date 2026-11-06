@@ -12,9 +12,10 @@ struct Config {
     std::string database_path;
     std::string model_path;
     std::string reranker_path;
+    std::string llm_path;
 };
 
-// Lit VIGIE_PORT, VIGIE_WEB_DIR, VIGIE_DB_PATH, VIGIE_MODEL_PATH et VIGIE_RERANKER_PATH. Lève std::invalid_argument si le port est invalide.
+// Lit VIGIE_PORT, VIGIE_WEB_DIR, VIGIE_DB_PATH, VIGIE_MODEL_PATH, VIGIE_RERANKER_PATH et VIGIE_LLM_PATH. Lève std::invalid_argument si le port est invalide.
 Config load_config();
 
 }  // namespace vigie

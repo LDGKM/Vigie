@@ -38,6 +38,7 @@
     </form>
     <section id="result" aria-live="polite" hidden>
       <p id="message"></p>
+      <p id="notice" class="meta" hidden>Réponse rédigée par une IA. Vérifie-la dans les passages cités avant d'agir.</p>
       <div id="sources"></div>
     </section>
   </main>
@@ -49,12 +50,14 @@
 
     const message = document.getElementById("message");
     const sources = document.getElementById("sources");
+    const notice = document.getElementById("notice");
 
     function show(text, isError = false) {
       result.hidden = false;
       result.className = isError ? "error" : "";
       message.textContent = text;
       sources.replaceChildren();
+      notice.hidden = true;
     }
 
     function element(tag, className, text) {
@@ -80,7 +83,7 @@
         const card = document.createElement("article");
         card.className = "source";
         card.append(
-          element("h2", "", source.title),
+          element("h2", "", `[${source.number}] ${source.title}`),
           element("p", "place", source.section),
           element("p", "meta", sourceDetails(source)),
           element("p", "excerpt", source.excerpt),
@@ -98,7 +101,7 @@
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       send.disabled = true;
-      show("Recherche en cours...");
+      show("Vigie cherche dans ses documents et rédige sa réponse. Sur ton PC, cela peut prendre près d'une minute.");
 
       try {
         const response = await fetch("/ask", {
@@ -112,6 +115,7 @@
           return;
         }
         show(data.answer);
+        notice.hidden = !(data.status === "found" && data.model);
         showSources(data.sources);
       } catch {
         show("Impossible de joindre le serveur Vigie.", true);

@@ -9,6 +9,7 @@
 #include "core/assistant.hpp"
 #include "corpus/embedder.hpp"
 #include "corpus/reranker.hpp"
+#include "llm/local_generator.hpp"
 
 int main() {
     try {
@@ -31,8 +32,15 @@ int main() {
             }
         }
 
+        std::unique_ptr<vigie::llm::LocalGenerator> generator;
+        try {
+            generator = std::make_unique<vigie::llm::LocalGenerator>(config.llm_path);
+        } catch (const std::exception& error) {
+            std::cerr << "Redaction desactivee : " << error.what() << std::endl;
+        }
+
         const vigie::Assistant assistant{
-            vigie::corpus::SearchIndex(config.database_path, embedder.get(), reranker.get())};
+            vigie::corpus::SearchIndex(config.database_path, embedder.get(), reranker.get()), generator.get()};
 
         crow::SimpleApp app;
         vigie::register_routes(app, config, assistant);

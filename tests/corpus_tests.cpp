@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "core/grounding.hpp"
 #include "corpus/chunker.hpp"
 #include "corpus/embedder.hpp"
 #include "corpus/extract_html.hpp"
@@ -262,6 +263,54 @@ void test_embedder() {
 
 }  // namespace
 
+void test_answer_check() {
+    vigie::corpus::SearchHit first;
+    first.title = "Directive";
+    first.section = "Article 71";
+    first.text = "Au plus tard treize mois, dans la limite de 50 000 EUR.";
+    vigie::corpus::SearchHit second;
+    second.title = "Directive";
+    second.section = "Article 73";
+    second.text = "Avant la fin du premier jour ouvrable suivant.";
+    const std::vector<vigie::corpus::SearchHit> passages{first, second};
+
+    const auto valid = vigie::check_answer("Le plafond est de 50000 EUR [1]. Le remboursement est rapide [1, 2].", passages);
+    check(valid.check == vigie::AnswerCheck::Valid, "reponse valide");
+    check(valid.citations == std::vector<int>({1, 2}), "citations sans doublon");
+    check(vigie::check_answer("L'article 71 s'applique [1].", passages).check == vigie::AnswerCheck::Valid,
+          "nombre present dans le titre de section");
+    check(vigie::check_answer("Le plafond est de 50\xC2\xA0" "000 EUR [1].", passages).check == vigie::AnswerCheck::Valid,
+          "espace insecable dans un nombre");
+
+    check(vigie::check_answer("Le delai est de treize mois [1]. Cela protege le client.", passages).text ==
+              "Le delai est de treize mois [1].",
+          "fin sans citation retiree");
+    check(vigie::check_answer("Le delai est de treize mois [1]. Il passera a 18 mois.", passages).check ==
+              vigie::AnswerCheck::Valid,
+          "nombre retire avec la fin non citee");
+
+    vigie::corpus::SearchHit fine;
+    fine.title = "Reglement";
+    fine.section = "Sanctions";
+    fine.text = "Une amende de 35 000 000 EUR.";
+    check(vigie::check_answer("Une amende de 35 millions d'euros [1].", {fine}).check == vigie::AnswerCheck::Valid,
+          "montant ecrit en millions");
+
+    using enum vigie::AnswerCheck;
+    check(vigie::check_answer("INFORMATION NON TROUVÉE", passages).check == NotFound, "refus du modele");
+    check(vigie::check_answer("Le delai est de treize mois.", passages).check == Unconfirmed, "citation absente");
+    check(vigie::check_answer("Le delai est de treize mois [3].", passages).check == Unconfirmed, "citation inventee");
+    check(vigie::check_answer("Le delai est de 18 mois [1].", passages).check == Unconfirmed, "nombre invente");
+    check(vigie::check_answer("Le plafond est de 50 000 EUR [2].", passages).check == Unconfirmed,
+          "nombre absent du passage cite");
+    check(vigie::check_answer("Une amende de 36 millions d'euros [1].", {fine}).check == Unconfirmed,
+          "autre montant en millions");
+    check(vigie::check_answer("Le plafond [a] est connu.", passages).check == Unconfirmed, "crochet qui n'est pas une citation");
+
+    const std::string prompt = vigie::grounded_user_prompt("Question ?", passages);
+    check(prompt.find("[2] Directive — Article 73") != std::string::npos, "passages numerotes");
+}
+
 int main() {
     test_clean_text();
     test_eu_law_sections();
@@ -272,6 +321,7 @@ int main() {
     test_extract_terms();
     test_search();
     test_embedder();
+    test_answer_check();
 
     if (failures == 0) {
         std::cout << "Tous les tests sont passes.\n";

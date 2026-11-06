@@ -93,11 +93,13 @@ crow::response handle_ask(const crow::request& request, const Assistant& assista
     crow::json::wvalue response;
     response["answer"] = answer.text;
     response["engine"] = answer.engine;
+    response["model"] = answer.model;
     response["status"] = answer.status;
 
     crow::json::wvalue::list sources;
     for (const Source& source : answer.sources) {
         crow::json::wvalue item;
+        item["number"] = source.number;
         item["document_id"] = source.document_id;
         item["title"] = source.title;
         item["issuer"] = source.issuer;
