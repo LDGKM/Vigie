@@ -5,193 +5,734 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Vigie</title>
   <style>
-    :root { color-scheme: light dark; --bg: #f6f7f5; --panel: #fff; --text: #17201c; --muted: #5d6963; --line: #d9dfdb; --accent: #0f6e56; --error: #a32d2d; }
-    @media (prefers-color-scheme: dark) { :root { --bg: #121714; --panel: #1b221e; --text: #edf2ef; --muted: #a5b0aa; --line: #333d38; --accent: #5dcaa5; --error: #f09595; } }
+    :root {
+      color-scheme: light dark;
+      --bg: #f4f5f2; --panel: #ffffff; --panel-2: #eef1ec; --text: #17201c; --muted: #5d6963; --line: #dbe0db;
+      --accent: #0f6e56; --accent-soft: #e1f0ea; --on-accent: #ffffff; --warn: #8a5a00; --warn-soft: #fbf1dc;
+      --error: #a32d2d; --s1: #9aa8a1; --s2: #0f6e56; --s3: #c27c0e; --radius: 14px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #101513; --panel: #19201c; --panel-2: #212a25; --text: #edf2ef; --muted: #a3afa8; --line: #2f3a34;
+        --accent: #5dcaa5; --accent-soft: #1d3a30; --on-accent: #0c1411; --warn: #f0c36b; --warn-soft: #3a2f17;
+        --error: #f09595; --s1: #7d8a83; --s2: #5dcaa5; --s3: #f0b35b;
+      }
+    }
     * { box-sizing: border-box; }
-    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, "Segoe UI", sans-serif; }
-    main { width: min(760px, 100%); margin: 0 auto; padding: 40px 16px; }
-    h1 { margin: 0; font-size: 30px; }
-    .subtitle { margin: 4px 0 28px; color: var(--muted); }
-    form { display: flex; gap: 8px; }
-    input { flex: 1; min-width: 0; padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--text); font: inherit; }
-    button { padding: 11px 18px; border: 0; border-radius: 8px; background: var(--accent); color: var(--bg); font: inherit; font-weight: 600; cursor: pointer; }
-    button:disabled { opacity: .6; cursor: wait; }
-    #result { margin-top: 24px; }
-    #result[hidden] { display: none; }
-    #message { margin: 0 0 16px; }
-    #result.error #message { color: var(--error); }
-    .source { margin-top: 12px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
-    .source h2 { margin: 0; font-size: 16px; line-height: 1.4; }
-    .place { margin: 2px 0 0; font-weight: 600; }
-    .meta { margin: 2px 0 10px; color: var(--muted); font-size: 14px; }
-    .excerpt { margin: 0 0 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
-    .source a { color: var(--accent); font-size: 14px; }
-    #history { margin: 20px 0;  padding: 0; list-style: none; }
-    #history li { margin-bottom: 12px; padding: 12px 16px; border-left: 3px solid var(--line); }
-    #history .asked { margin: 0; font-weight: 600; }
-    #history .said { margin: 4px 0 0; color: var(--muted); }
-    #result .asked { margin: 0 0 4px; font-weight: 600; }
-    #understood { margin: 0 0 8px; color: var(--muted); font-size: 14px; }
-    .secondary { margin-top: 10px; background: transparent; color: var(--accent); border: 1px solid var(--line); }
+    html, body { height: 100%; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 system-ui, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; }
+    button, input, textarea, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: not-allowed; opacity: .55; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    header { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+    .bar { max-width: 860px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 12px; }
+    .brand { display: flex; align-items: center; gap: 10px; margin-right: auto; min-width: 0; }
+    .brand svg { flex: none; }
+    .brand h1 { margin: 0; font-size: 20px; letter-spacing: -.01em; }
+    .brand p { margin: 0; color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .modes { display: flex; background: var(--panel-2); border-radius: 999px; padding: 3px; }
+    .modes button { white-space: nowrap; border: 0; background: transparent; padding: 6px 14px; border-radius: 999px; font-size: 14px; font-weight: 600; color: var(--muted); }
+    .modes button[aria-pressed="true"] { background: var(--panel); color: var(--text); box-shadow: 0 1px 2px rgb(0 0 0 / .08); }
+    .ghost { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 6px 12px; font-size: 14px; color: var(--muted); }
+    .ghost:hover { color: var(--text); }
+
+    main { flex: 1; width: 100%; max-width: 860px; margin: 0 auto; padding: 20px 16px 8px; }
+    #thread { display: flex; flex-direction: column; gap: 18px; }
+
+    .welcome { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; }
+    .welcome h2 { margin: 0 0 6px; font-size: 22px; }
+    .welcome p { margin: 0 0 14px; color: var(--muted); }
+    .pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0 16px; }
+    .pillars div { background: var(--panel-2); border-radius: 10px; padding: 10px 12px; font-size: 14px; }
+    .pillars strong { display: block; font-size: 14px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 6px 12px; font-size: 14px; }
+    .chip:hover { border-color: var(--accent); color: var(--accent); }
+    .chip.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+
+    .msg { display: flex; gap: 10px; align-items: flex-start; }
+    .msg.user { justify-content: flex-end; }
+    .avatar { flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); display: grid; place-items: center; margin-top: 2px; }
+    .bubble { max-width: min(680px, 100%); min-width: 0; }
+    .user .bubble { background: var(--accent); color: var(--on-accent); padding: 10px 14px; border-radius: 16px 16px 4px 16px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .assistant .bubble { flex: 1; background: var(--panel); border: 1px solid var(--line); padding: 14px 16px; border-radius: 4px 16px 16px 16px; }
+    .answer { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .understood { margin: 0 0 6px; color: var(--muted); font-size: 13px; }
+    .notice { margin: 10px 0 0; color: var(--muted); font-size: 13px; }
+    .not-found .answer { color: var(--muted); }
+    .error .answer { color: var(--error); }
+    .cite { border: 0; background: var(--accent-soft); color: var(--accent); border-radius: 6px; padding: 0 5px; margin: 0 1px; font-size: 12px; font-weight: 700; vertical-align: 1px; }
+
+    .steps { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 8px; padding: 0; list-style: none; font-size: 13px; color: var(--muted); }
+    .steps li { display: flex; align-items: center; gap: 6px; }
+    .steps li::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+    .steps li.done::before { background: var(--accent); }
+    .steps li.active { color: var(--text); font-weight: 600; }
+    .steps li.active::before { background: var(--accent); animation: pulse 1s infinite ease-in-out; }
+    .steps li + li::after { content: none; }
+    @keyframes pulse { 50% { opacity: .25; } }
+    @media (prefers-reduced-motion: reduce) { .steps li.active::before { animation: none; } }
+
+    details.sources { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
+    details.sources summary { cursor: pointer; color: var(--muted); font-size: 14px; font-weight: 600; }
+    .source { margin-top: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-2); transition: box-shadow .3s; }
+    .source.flash { box-shadow: 0 0 0 2px var(--accent); }
+    .source h3 { margin: 0; font-size: 15px; line-height: 1.4; }
+    .source .place { margin: 2px 0 0; font-weight: 600; font-size: 14px; }
+    .source .meta { margin: 2px 0 8px; color: var(--muted); font-size: 13px; }
+    .source .excerpt { margin: 0 0 8px; font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+    .source.open .excerpt { display: block; }
+    .source .links { display: flex; gap: 14px; font-size: 13px; }
+    .source a, .linkish { color: var(--accent); background: none; border: 0; padding: 0; font-size: 13px; text-decoration: underline; }
+
+    .plan-card { display: grid; gap: 14px; }
+    .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .kpi { background: var(--panel-2); border-radius: 10px; padding: 10px 12px; }
+    .kpi span { display: block; color: var(--muted); font-size: 12px; }
+    .kpi strong { font-size: 18px; }
+    .chart-wrap { position: relative; }
+    .chart-wrap svg { width: 100%; height: auto; display: block; }
+    .tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; font-size: 12px; box-shadow: 0 4px 14px rgb(0 0 0 / .12); white-space: nowrap; }
+    .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--muted); }
+    .legend i { display: inline-block; width: 18px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+    .goals { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+    .goals li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 12px; border-radius: 10px; background: var(--panel-2); font-size: 14px; }
+    .ok { color: var(--accent); font-weight: 700; }
+    .ko { color: var(--warn); font-weight: 700; }
+    .warning { background: var(--warn-soft); color: var(--warn); border-radius: 10px; padding: 8px 12px; font-size: 14px; }
+    .controls { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 18px; }
+    .controls label { font-size: 13px; color: var(--muted); display: grid; gap: 2px; }
+    .controls output { color: var(--text); font-weight: 600; }
+    .controls input[type=range] { width: 100%; accent-color: var(--accent); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+    th, td { padding: 5px 6px; text-align: right; border-bottom: 1px solid var(--line); }
+    th:first-child, td:first-child { text-align: left; }
+    .disclaimer { color: var(--muted); font-size: 12px; margin: 0; }
+    .section-title { margin: 0 0 6px; font-size: 14px; }
+
+    footer { position: sticky; bottom: 0; background: linear-gradient(transparent, var(--bg) 30%); padding: 18px 0 14px; }
+    .composer { max-width: 860px; margin: 0 auto; padding: 0 16px; }
+    .box { display: flex; gap: 8px; align-items: flex-end; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 8px 8px 8px 14px; box-shadow: 0 4px 18px rgb(0 0 0 / .06); }
+    .box:focus-within { border-color: var(--accent); }
+    textarea:focus-visible { outline: none; }
+    textarea { flex: 1; border: 0; background: transparent; resize: none; outline: none; max-height: 160px; padding: 6px 0; line-height: 1.5; }
+    .send { flex: none; width: 40px; height: 40px; border: 0; border-radius: 12px; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; }
+    .hint { margin: 6px 4px 0; font-size: 12px; color: var(--muted); text-align: center; }
+    .quick { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+    @media (max-width: 640px) {
+      .brand p { display: none; }
+      .pillars, .kpis { grid-template-columns: repeat(2, 1fr); }
+      .controls { grid-template-columns: 1fr; }
+      .ghost .label { display: none; }
+      .modes button { padding: 6px 10px; font-size: 13px; }
+      .brand h1 { font-size: 18px; }
+    }
   </style>
 </head>
 <body>
+  <header>
+    <div class="bar">
+      <div class="brand">
+        <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="var(--accent-soft)"/><path d="M16 7l5 18H11z" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/><path d="M8 12c2-2 5-3 8-3s6 1 8 3" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="13" r="2" fill="var(--accent)"/></svg>
+        <div>
+          <h1>Vigie</h1>
+          <p>Assistant de finance numérique · réponses sourcées</p>
+        </div>
+      </div>
+      <div class="modes" role="group" aria-label="Mode">
+        <button id="mode-ask" type="button" aria-pressed="true">Questions</button>
+        <button id="mode-plan" type="button" aria-pressed="false">Plan financier</button>
+      </div>
+      <button id="reset" class="ghost" type="button" title="Nouvelle conversation">
+        <span aria-hidden="true">＋</span> <span class="label">Nouvelle</span>
+      </button>
+    </div>
+  </header>
+
   <main>
-    <h1>Vigie</h1>
-    <p class="subtitle">Assistant de finance numérique. Vigie est une IA et peut se tromper.</p>
-    <form id="form">
-      <input id="question" maxlength="1000" placeholder="Pose ta question" aria-label="Question" required>
-      <button id="send" type="submit">Envoyer</button>
-    </form>
-    <ol id="history" aria-label="Échanges précédents"></ol>
-    <section id="result" aria-live="polite" hidden>
-      <p id="asked" class="asked"></p>
-      <p id="understood" hidden></p>
-      <p id="message"></p>
-      <p id="notice" class="meta" hidden>Réponse rédigée par une IA. Vérifie-la dans les passages cités avant d'agir.</p>
-      <div id="sources"></div>
-    </section>
-    <button id="reset" class="secondary" type="button" hidden>Nouvelle conversation</button>
+    <div id="thread" aria-live="polite"></div>
   </main>
+
+  <footer>
+    <div class="composer">
+      <div id="quick" class="quick"></div>
+      <form id="form" class="box">
+        <label for="input" class="sr-only">Message</label>
+        <textarea id="input" rows="1" maxlength="1000" placeholder="Pose ta question…"></textarea>
+        <button id="send" class="send" type="submit" aria-label="Envoyer">
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12l16-8-6 16-2.5-6.5z" fill="currentColor"/></svg>
+        </button>
+      </form>
+      <p class="hint" id="hint">Vigie est une IA et peut se tromper. Vérifie les sources avant d'agir.</p>
+    </div>
+  </footer>
+
   <script>
-    const form = document.getElementById("form");
-    const question = document.getElementById("question");
-    const send = document.getElementById("send");
-    const result = document.getElementById("result");
+    "use strict";
+    const $ = (id) => document.getElementById(id);
+    const thread = $("thread"), input = $("input"), send = $("send"), quick = $("quick"), hint = $("hint");
+    const euros = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+    const percent = new Intl.NumberFormat("fr-FR", { style: "percent", maximumFractionDigits: 1 });
 
-    const message = document.getElementById("message");
-    const sources = document.getElementById("sources");
-    const notice = document.getElementById("notice");
-    const understood = document.getElementById("understood");
-    const askedLine = document.getElementById("asked");
-    const historyList = document.getElementById("history");
-    const reset = document.getElementById("reset");
-
-    // La question précédente, telle que Vigie l'a comprise, sert à comprendre une question de suite.
+    let mode = "ask";
+    let busy = false;
     let previousQuestion = "";
-    let lastExchange = null;
 
-    function archiveLastExchange() {
-      if (!lastExchange) return;
-      const item = document.createElement("li");
-      item.append(element("p", "asked", lastExchange.question), element("p", "said", lastExchange.answer));
-      historyList.append(item);
-      lastExchange = null;
-    }
-
-    reset.addEventListener("click", () => {
-      previousQuestion = "";
-      lastExchange = null;
-      historyList.replaceChildren();
-      result.hidden = true;
-      reset.hidden = true;
-      question.value = "";
-      question.focus();
-    });
-
-    function show(text, isError = false) {
-      result.hidden = false;
-      result.className = isError ? "error" : "";
-      message.textContent = text;
-      sources.replaceChildren();
-      notice.hidden = true;
-    }
-
-    function showUnderstood(asked, resolved) {
-      understood.hidden = !resolved || resolved === asked;
-      understood.textContent = `Question comprise : ${resolved}`;
-    }
-
-    function element(tag, className, text) {
+    // ---------- Petits outils d'affichage ----------
+    function el(tag, className, text) {
       const node = document.createElement(tag);
-      node.className = className;
-      node.textContent = text;
+      if (className) node.className = className;
+      if (text !== undefined) node.textContent = text;
       return node;
     }
+    function scrollDown() { window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }); }
 
-    function formatDate(value) {
-      return new Date(`${value}T12:00:00`).toLocaleDateString("fr-FR", { dateStyle: "long" });
+    function userMessage(text) {
+      const row = el("div", "msg user");
+      row.append(el("div", "bubble", text));
+      thread.append(row);
+      scrollDown();
     }
 
-    function sourceDetails(source) {
-      const details = [source.issuer];
-      if (source.version) details.push(`version du ${formatDate(source.version)}`);
-      details.push(source.version_status);
-      return details.join(" · ");
+    function assistantMessage() {
+      const row = el("div", "msg assistant");
+      const avatar = el("div", "avatar");
+      avatar.innerHTML = '<svg width="16" height="16" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 5l6 22H10z" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linejoin="round"/></svg>';
+      const bubble = el("div", "bubble");
+      row.append(avatar, bubble);
+      thread.append(row);
+      scrollDown();
+      return bubble;
     }
 
-    function showSources(items) {
-      for (const source of items) {
-        const card = document.createElement("article");
-        card.className = "source";
-        card.append(
-          element("h2", "", `[${source.number}] ${source.title}`),
-          element("p", "place", source.section),
-          element("p", "meta", sourceDetails(source)),
-          element("p", "excerpt", source.excerpt),
-        );
-
-        const link = element("a", "", "Ouvrir le document");
-        link.href = source.url;
-        link.target = "_blank";
-        link.rel = "noreferrer";
-        card.append(link);
-        sources.append(card);
+    function setQuick(items) {
+      quick.replaceChildren();
+      for (const item of items) {
+        const chip = el("button", "chip" + (item.primary ? " primary" : ""), item.label);
+        chip.type = "button";
+        chip.addEventListener("click", item.action);
+        quick.append(chip);
       }
     }
 
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      send.disabled = true;
-      archiveLastExchange();
-      const asked = question.value.trim();
-      understood.hidden = true;
-      askedLine.textContent = asked;
-      show("Vigie cherche dans ses documents…");
+    function formatDate(value) {
+      const date = new Date(value + "T00:00:00");
+      return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+    }
 
+    // Le texte de la réponse avec des citations [n] cliquables.
+    function answerText(text, sourcesBox) {
+      const p = el("p", "answer");
+      const parts = text.split(/(\[\d+(?:\s*,\s*\d+)*\])/);
+      for (const part of parts) {
+        const match = part.match(/^\[([\d,\s]+)\]$/);
+        if (!match || !sourcesBox) { p.append(part); continue; }
+        for (const number of match[1].split(",").map((n) => n.trim())) {
+          const button = el("button", "cite", number);
+          button.type = "button";
+          button.title = `Voir la source ${number}`;
+          button.addEventListener("click", () => showSource(sourcesBox, number));
+          p.append(button);
+        }
+      }
+      return p;
+    }
+
+    function showSource(box, number) {
+      box.open = true;
+      const card = box.querySelector(`[data-number="${number}"]`);
+      if (!card) return;
+      card.scrollIntoView({ behavior: "smooth", block: "center" });
+      card.classList.add("flash");
+      setTimeout(() => card.classList.remove("flash"), 1200);
+    }
+
+    function sourcesBlock(items, open) {
+      const box = el("details", "sources");
+      box.open = open;
+      box.append(el("summary", "", items.length === 1 ? "1 source" : `${items.length} sources`));
+      for (const source of items) {
+        const card = el("article", "source");
+        card.dataset.number = source.number;
+        const details = [source.issuer];
+        if (source.version) details.push(`version du ${formatDate(source.version)}`);
+        if (source.version_status) details.push(source.version_status);
+        const links = el("div", "links");
+        const more = el("button", "linkish", "Lire tout l'extrait");
+        more.type = "button";
+        more.addEventListener("click", () => { card.classList.toggle("open"); more.textContent = card.classList.contains("open") ? "Réduire" : "Lire tout l'extrait"; });
+        const link = el("a", "", "Ouvrir le document");
+        link.href = source.url; link.target = "_blank"; link.rel = "noreferrer";
+        links.append(more, link);
+        card.append(el("h3", "", `[${source.number}] ${source.title}`), el("p", "place", source.section),
+                    el("p", "meta", details.join(" · ")), el("p", "excerpt", source.excerpt), links);
+        box.append(card);
+      }
+      return box;
+    }
+
+    function steps(active) {
+      const names = ["Recherche", "Rédaction", "Vérification"];
+      const list = el("ul", "steps");
+      names.forEach((name, index) => {
+        const item = el("li", index < active ? "done" : index === active ? "active" : "", name);
+        list.append(item);
+      });
+      return list;
+    }
+
+    // ---------- Mode questions ----------
+    async function ask(question) {
+      userMessage(question);
+      const bubble = assistantMessage();
+      bubble.append(steps(0), el("p", "answer", "Je cherche dans mes documents…"));
+      setBusy(true);
       try {
         const started = await fetch("/ask/start", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ question: asked, previous_question: previousQuestion }),
+          body: JSON.stringify({ question, previous_question: previousQuestion }),
         });
         const job = await started.json();
-        if (!started.ok) {
-          show(job.error.message, true);
-          return;
-        }
+        if (!started.ok) return showError(bubble, job.error.message);
 
         let writing = false;
         for (;;) {
-          await new Promise((resolve) => setTimeout(resolve, 800));
-          const data = await (await fetch(`/ask/job/${job.job}`)).json();
-          if (data.state === "error" || data.error) {
-            show(data.error.message, true);
-            return;
-          }
-          if (data.state === "done") {
-            show(data.answer);
-            showUnderstood(asked, data.question);
-            previousQuestion = data.question || asked;
-            lastExchange = { question: asked, answer: data.answer };
-            reset.hidden = false;
-            question.value = "";
-            notice.hidden = !(data.status === "found" && data.model);
-            showSources(data.sources);
-            return;
-          }
+          await new Promise((resolve) => setTimeout(resolve, 700));
+          const response = await fetch(`/ask/job/${job.job}`);
+          const data = await response.json();
+          if (!response.ok || data.state === "error") return showError(bubble, data.error ? data.error.message : "La question n'a pas abouti.");
+          if (data.state === "done") return showAnswer(bubble, question, data);
           if (data.state === "writing" && !writing) {
             writing = true;
-            show("Rédaction en cours… Vigie a trouvé les passages ci-dessous et rédige maintenant sa réponse. Cela peut prendre près d'une minute.");
-            showSources(data.sources);
+            bubble.replaceChildren(steps(1), el("p", "answer", "J'ai trouvé des passages. Je rédige une réponse et je vérifie ses citations. Cela peut prendre près d'une minute."),
+                                   sourcesBlock(data.sources, false));
+            scrollDown();
           }
         }
       } catch {
-        show("Impossible de joindre le serveur Vigie.", true);
+        showError(bubble, "Impossible de joindre le serveur Vigie. Vérifie que vigie.exe est lancé.");
       } finally {
-        send.disabled = false;
+        setBusy(false);
       }
+    }
+
+    function showError(bubble, message) {
+      bubble.parentElement.classList.add("error");
+      bubble.replaceChildren(el("p", "answer", message));
+    }
+
+    function showAnswer(bubble, asked, data) {
+      bubble.replaceChildren();
+      if (data.status === "chat" || data.status === "plan") {
+        bubble.append(el("p", "answer", data.answer));
+        if (data.status === "plan") {
+          const chips = el("div", "chips");
+          chips.style.marginTop = "10px";
+          const start = el("button", "chip primary", "Commencer le plan");
+          start.type = "button";
+          start.addEventListener("click", () => setMode("plan"));
+          chips.append(start);
+          bubble.append(chips);
+        }
+        scrollDown();
+        return;
+      }
+
+      previousQuestion = data.question || asked;
+      if (data.question && data.question !== asked) bubble.append(el("p", "understood", `Question comprise : ${data.question}`));
+      if (data.status === "not_found") {
+        bubble.parentElement.classList.add("not-found");
+        bubble.append(el("p", "answer", data.answer + " Essaie une autre formulation, ou une question sur l'épargne, le crédit, les paiements ou la réglementation."));
+        scrollDown();
+        return;
+      }
+
+      const box = data.sources.length ? sourcesBlock(data.sources, data.status !== "found" || !data.model) : null;
+      bubble.append(answerText(data.answer, box));
+      if (data.status === "found" && data.model) bubble.append(el("p", "notice", "Réponse rédigée par une IA à partir des sources ci-dessous. Vérifie-la avant d'agir."));
+      if (box) bubble.append(box);
+      scrollDown();
+    }
+
+    // ---------- Mode plan financier ----------
+    const planSteps = [
+      { key: "horizon_years", ask: "Sur combien d'années veux-tu faire ce plan ?", parse: (t) => parseYears(t, 1, 50), example: "10 ans" },
+      { key: "age", ask: "Quel âge as-tu ? C'est facultatif : réponds « passer » si tu préfères.", parse: (t) => parseYears(t, 0, 120), optional: true, example: "24" },
+      { key: "monthly_income", ask: "Combien gagnes-tu par mois, net ? Compte toutes tes rentrées régulières.", parse: parseAmount, example: "2 000 €" },
+      { key: "monthly_expenses", ask: "Combien dépenses-tu par mois en moyenne ? Loyer, courses, transports, abonnements…", parse: parseAmount, example: "1 500 €" },
+      { key: "current_savings", ask: "Combien as-tu déjà d'épargne disponible ?", parse: parseAmount, example: "3 000 €" },
+      { key: "monthly_saving", ask: () => `Combien veux-tu mettre de côté chaque mois ? Réponds « tout » pour épargner la différence entre tes revenus et tes dépenses (${euros.format(Math.max(0, plan.monthly_income - plan.monthly_expenses))}).`, parse: parseSaving, example: "tout" },
+      { key: "goals", ask: "As-tu des objectifs ? Écris-en un par message, par exemple « apport immobilier, 20 000 €, dans 5 ans ». Réponds « fini » quand c'est tout, ou « aucun ».", goals: true },
+    ];
+    let plan = null;
+    let planStep = 0;
+    let planResultBubble = null;
+    let lastPlan = null;
+
+    // Questions sur la simulation elle-même : la réponse vient du calcul, pas des documents.
+    function answerAboutPlan(text) {
+      const lower = text.toLowerCase();
+      const data = lastPlan;
+      const central = data.central;
+      const years = data.years;
+      const inYears = lower.match(/dans\s+(\d{1,2})\s*ans?/);
+      if (inYears && /combien|aurai|montant|capital|épargne/.test(lower)) {
+        const n = Number(inYears[1]);
+        userMessage(text);
+        if (n < 1 || n > years.length) { say(`Ta simulation couvre ${years.length} ans. Change l'horizon avec le curseur pour voir plus loin.`); return true; }
+        const row = years[n - 1];
+        say(`D'après ta simulation, dans ${n} an${n > 1 ? "s" : ""} tu aurais environ ${euros.format(row.capital[central])} dans l'hypothèse centrale, entre ${euros.format(row.capital[0])} et ${euros.format(row.capital[row.capital.length - 1])} selon les hypothèses. Tu aurais versé ${euros.format(row.contributed)} au total.`);
+        return true;
+      }
+      const target = /quand|en combien de temps/.test(lower) ? parseAmount(lower) : null;
+      if (target) {
+        userMessage(text);
+        const row = years.find((y) => y.capital[central] >= target);
+        say(row ? `Dans l'hypothèse centrale, tu dépasserais ${euros.format(target)} au bout de ${row.year} an${row.year > 1 ? "s" : ""}.`
+                : `Dans l'hypothèse centrale, tu n'atteins pas ${euros.format(target)} en ${years.length} ans. Essaie d'augmenter ton épargne mensuelle ou l'horizon.`);
+        return true;
+      }
+      if (/mes objectifs|objectifs? (sont|est)|atteindre mes/.test(lower)) {
+        userMessage(text);
+        if (!data.goals.length) { say("Tu n'as pas indiqué d'objectif. Refais le plan pour en ajouter."); return true; }
+        say(data.goals.map((g) => `${g.name} : ${g.reached ? "financé" : g.in_years > years.length ? "hors horizon" : "manque " + euros.format(g.shortfall)}`).join(". ") + ".");
+        return true;
+      }
+      return false;
+    }
+
+    function startPlan() {
+      plan = { scenarios: [{ name: "Prudent", annual_rate: 0.01 }, { name: "Central", annual_rate: 0.03 }, { name: "Dynamique", annual_rate: 0.05 }], inflation: 0.02, emergency_months: 3, goals: [] };
+      planStep = 0;
+      const bubble = assistantMessage();
+      bubble.append(el("p", "answer", "Faisons ton plan d'épargne. Je te pose 7 questions, puis je calcule l'évolution de ton épargne année par année selon trois hypothèses de rendement. Tes réponses restent sur ton ordinateur. C'est une simulation, pas un conseil en placement."));
+      askPlanStep();
+    }
+
+    function askPlanStep() {
+      const step = planSteps[planStep];
+      const bubble = assistantMessage();
+      bubble.append(el("p", "answer", typeof step.ask === "function" ? step.ask() : step.ask));
+      const chips = [];
+      if (step.optional) chips.push({ label: "Passer", action: () => submit("passer") });
+      if (step.key === "monthly_saving") chips.push({ label: "Tout", action: () => submit("tout") });
+      if (step.goals) chips.push({ label: "Fini", action: () => submit("fini") }, { label: "Aucun objectif", action: () => submit("aucun") });
+      chips.push({ label: "Quitter le plan", action: () => setMode("ask") });
+      setQuick(chips);
+      input.placeholder = `Par exemple : ${step.example || "apport immobilier, 20 000 €, dans 5 ans"}`;
+    }
+
+    function answerPlan(text) {
+      userMessage(text);
+      const step = planSteps[planStep];
+      const lower = text.trim().toLowerCase();
+
+      if (step.goals) {
+        if (/^(fini|c'est tout|aucun|non|rien|termin)/.test(lower)) return computePlan();
+        const goal = parseGoal(text);
+        if (!goal) return say("Je n'ai pas compris cet objectif. Donne un nom, un montant et une échéance, par exemple « voiture, 8 000 €, dans 3 ans ».");
+        if (goal.in_years > plan.horizon_years) say(`Note : cet objectif dépasse l'horizon de ${plan.horizon_years} ans, il ne sera pas financé dans la simulation.`);
+        plan.goals.push(goal);
+        return say(`C'est noté : ${goal.name}, ${euros.format(goal.amount)} dans ${goal.in_years} an${goal.in_years > 1 ? "s" : ""}. Un autre objectif, ou « fini » ?`);
+      }
+
+      if (step.optional && /^(passer|non|aucun|-)/.test(lower)) { planStep += 1; return askPlanStep(); }
+      const value = step.parse(text);
+      if (value === null) return say(`Je n'ai pas compris. Réponds par exemple : ${step.example}.`);
+      if (value !== undefined) plan[step.key] = value;
+      planStep += 1;
+      askPlanStep();
+    }
+
+    function say(text) { assistantMessage().append(el("p", "answer", text)); }
+
+    async function computePlan(fromControls) {
+      planStep = planSteps.length;
+      setQuick([{ label: "Refaire le plan", action: () => setMode("plan", true) }, { label: "Poser une question", action: () => setMode("ask") }]);
+      input.placeholder = "Pose une question sur ton plan ou sur un produit d'épargne…";
+      try {
+        const response = await fetch("/plan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(plan) });
+        const data = await response.json();
+        if (!response.ok) return say(data.error.message);
+        if (!fromControls || !planResultBubble) planResultBubble = assistantMessage();
+        renderPlan(planResultBubble, data);
+        lastPlan = data;
+        try { localStorage.setItem("vigie-plan", JSON.stringify(plan)); } catch { /* stockage indisponible */ }
+        if (!fromControls) scrollDown();
+      } catch {
+        say("Impossible de joindre le serveur Vigie. Vérifie que vigie.exe est lancé.");
+      }
+    }
+
+    function renderPlan(bubble, data) {
+      const central = data.scenarios[data.central];
+      const last = data.years[data.years.length - 1];
+      const card = el("div", "plan-card");
+      const reached = data.goals.filter((g) => g.reached).length;
+
+      const intro = el("p", "answer");
+      intro.textContent = `Avec ${euros.format(data.monthly_saving)} par mois pendant ${data.years.length} ans, ton épargne atteindrait ${euros.format(last.capital[data.central])} dans l'hypothèse « ${central.name} » (${percent.format(central.annual_rate)} par an), soit environ ${euros.format(last.central_in_todays_euros)} en euros d'aujourd'hui.`
+        + (data.goals.length ? ` ${reached} objectif${reached > 1 ? "s" : ""} sur ${data.goals.length} ${reached > 1 ? "sont financés" : "est financé"} dans cette hypothèse.` : "");
+      card.append(intro);
+
+      const kpis = el("div", "kpis");
+      const kpi = (label, value) => { const box = el("div", "kpi"); box.append(el("span", "", label), el("strong", "", value)); kpis.append(box); };
+      kpi("Épargne mensuelle", euros.format(data.monthly_saving));
+      kpi("Taux d'épargne", percent.format(data.saving_rate));
+      kpi("Versements cumulés", euros.format(last.contributed));
+      kpi("Épargne de précaution", data.months_to_emergency === 0 ? "Atteinte" : data.months_to_emergency ? `${data.months_to_emergency} mois` : "Non atteinte");
+      card.append(kpis);
+
+      for (const warning of data.warnings) card.append(el("p", "warning", warning));
+
+      card.append(chart(data));
+
+      if (data.goals.length) {
+        card.append(el("h3", "section-title", "Tes objectifs (hypothèse centrale)"));
+        const list = el("ul", "goals");
+        for (const goal of data.goals) {
+          const item = el("li");
+          const left = el("span", "", `${goal.name} · dans ${goal.in_years} an${goal.in_years > 1 ? "s" : ""} · ${euros.format(goal.amount_then)} avec l'inflation`);
+          const right = goal.in_years > data.years.length ? el("span", "ko", "Hors horizon") : goal.reached ? el("span", "ok", "Financé") : el("span", "ko", `Manque ${euros.format(goal.shortfall)}`);
+          item.append(left, right);
+          list.append(item);
+        }
+        card.append(list);
+        if (data.monthly_saving_for_all_goals !== null && data.monthly_saving_for_all_goals !== undefined && data.goals.some((g) => !g.reached && g.in_years <= data.years.length)) {
+          card.append(el("p", "warning", `Pour financer tous tes objectifs dans l'hypothèse centrale, il faudrait épargner environ ${euros.format(data.monthly_saving_for_all_goals)} par mois.`));
+        }
+      }
+
+      card.append(controls(data));
+
+      const table = el("details", "sources");
+      table.append(el("summary", "", "Voir le détail année par année"));
+      const grid = el("table");
+      grid.innerHTML = `<thead><tr><th>Année</th>${data.years[0].age !== null ? "<th>Âge</th>" : ""}<th>Versé</th>${data.scenarios.map((s) => `<th>${s.name}</th>`).join("")}<th>Central, € d'aujourd'hui</th></tr></thead>`;
+      const body = el("tbody");
+      for (const row of data.years) {
+        const tr = el("tr");
+        const cells = [String(row.year)];
+        if (row.age !== null) cells.push(String(row.age));
+        cells.push(euros.format(row.contributed), ...row.capital.map((v) => euros.format(v)), euros.format(row.central_in_todays_euros));
+        for (const value of cells) tr.append(el("td", "", value));
+        if (row.goals_paid.length) tr.title = `Objectifs financés : ${row.goals_paid.join(", ")}`;
+        body.append(tr);
+      }
+      grid.append(body);
+      table.append(grid);
+      card.append(table);
+
+      const learn = el("div", "chips");
+      for (const question of ["Quel est le plafond du livret A ?", "Qu'est-ce qu'un PEL ?", "Qu'est-ce qu'un PEA ?", "Comment fonctionne une assurance-vie ?", "Qu'est-ce qu'un PER ?"]) {
+        const chip = el("button", "chip", question);
+        chip.type = "button";
+        chip.addEventListener("click", () => { setMode("ask", false, true); ask(question); });
+        learn.append(chip);
+      }
+      card.append(el("h3", "section-title", "En savoir plus avec les documents"), learn);
+      card.append(el("p", "disclaimer", "Tu peux aussi me demander : « Combien j'aurai dans 5 ans ? », « Quand atteindrai-je 50 000 € ? » ou « Mes objectifs sont-ils atteints ? »"));
+      card.append(el("p", "disclaimer", "Simulation selon tes hypothèses : les rendements ne sont pas garantis et ne prédisent rien. Vigie ne recommande aucun produit. Pour un conseil personnalisé, adresse-toi à un conseiller enregistré à l'ORIAS."));
+
+      bubble.replaceChildren(card);
+    }
+
+    function controls(data) {
+      const box = el("div", "controls");
+      const control = (label, key, min, max, step, value, format, apply) => {
+        const wrap = el("label");
+        const out = el("output", "", format(value));
+        const range = el("input");
+        Object.assign(range, { type: "range", min, max, step, value });
+        range.addEventListener("input", () => { out.textContent = format(Number(range.value)); });
+        range.addEventListener("change", () => { apply(Number(range.value)); computePlan(true); });
+        const head = el("span", "", label + " : ");
+        head.append(out);
+        wrap.append(head, range);
+        box.append(wrap);
+      };
+      control("Épargne mensuelle", "monthly_saving", 0, Math.max(2000, Math.ceil(data.monthly_saving * 2 / 50) * 50), 10, data.monthly_saving, euros.format, (v) => { plan.monthly_saving = v; });
+      control("Horizon", "horizon_years", 1, 50, 1, data.years.length, (v) => `${v} ans`, (v) => { plan.horizon_years = v; });
+      control("Rendement central supposé", "rate", 0, 0.08, 0.005, data.scenarios[data.central].annual_rate, percent.format, (v) => {
+        plan.scenarios = [{ name: "Prudent", annual_rate: Math.max(0, v - 0.02) }, { name: "Central", annual_rate: v }, { name: "Dynamique", annual_rate: v + 0.02 }];
+      });
+      control("Inflation supposée", "inflation", 0, 0.06, 0.005, plan.inflation, percent.format, (v) => { plan.inflation = v; });
+      const wrap = el("div");
+      wrap.append(el("h3", "section-title", "Teste d'autres hypothèses"), box);
+      return wrap;
+    }
+
+    function chart(data) {
+      const W = 640, H = 260, L = 64, R = 14, T = 14, B = 30;
+      const years = data.years.length;
+      const series = data.scenarios.map((_, i) => [plan.current_savings || 0, ...data.years.map((y) => y.capital[i])]);
+      const contributed = [plan.current_savings || 0, ...data.years.map((y) => y.contributed)];
+      const max = Math.max(1, ...series.flat(), ...contributed) * 1.08;
+      const x = (i) => L + (i / years) * (W - L - R);
+      const y = (v) => T + (1 - Math.max(0, v) / max) * (H - T - B);
+      const path = (values) => values.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("");
+      const colors = ["var(--s1)", "var(--s2)", "var(--s3)"];
+      const ticks = 4;
+      let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Évolution de l'épargne selon trois hypothèses">`;
+      for (let k = 0; k <= ticks; k++) {
+        const v = (max / ticks) * k;
+        svg += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)" stroke-width="1"/>`;
+        svg += `<text x="${L - 8}" y="${y(v) + 4}" text-anchor="end" font-size="11" fill="var(--muted)">${compact(v)}</text>`;
+      }
+      const every = Math.max(1, Math.ceil(years / 10));
+      for (let i = 0; i <= years; i += every) svg += `<text x="${x(i)}" y="${H - 10}" text-anchor="middle" font-size="11" fill="var(--muted)">${i === 0 ? "Auj." : "+" + i}</text>`;
+      svg += `<path d="${path(series[data.central])}L${x(years)},${y(0)}L${x(0)},${y(0)}Z" fill="var(--s2)" opacity=".08"/>`;
+      svg += `<path d="${path(contributed)}" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="3 4"/>`;
+      series.forEach((values, i) => { svg += `<path d="${path(values)}" fill="none" stroke="${colors[i % 3]}" stroke-width="${i === data.central ? 3 : 2}" ${i === data.central ? "" : 'stroke-dasharray="6 4"'} stroke-linejoin="round"/>`; });
+      for (const goal of data.goals) {
+        if (goal.in_years > years) continue;
+        const gx = x(goal.in_years);
+        svg += `<line x1="${gx}" x2="${gx}" y1="${T}" y2="${H - B}" stroke="${goal.reached ? "var(--accent)" : "var(--warn)"}" stroke-width="1" stroke-dasharray="2 3"/>`;
+        svg += `<circle cx="${gx}" cy="${T + 6}" r="5" fill="${goal.reached ? "var(--accent)" : "var(--warn)"}"><title>${escapeHtml(goal.name)}</title></circle>`;
+      }
+      svg += `<line id="cursor" x1="0" x2="0" y1="${T}" y2="${H - B}" stroke="var(--muted)" stroke-width="1" visibility="hidden"/></svg>`;
+
+      const wrap = el("div", "chart-wrap");
+      wrap.innerHTML = svg;
+      const tip = el("div", "tip");
+      tip.hidden = true;
+      wrap.append(tip);
+      const svgNode = wrap.querySelector("svg"), cursor = wrap.querySelector("#cursor");
+      svgNode.addEventListener("pointermove", (event) => {
+        const box = svgNode.getBoundingClientRect();
+        const px = ((event.clientX - box.left) / box.width) * W;
+        const i = Math.min(years, Math.max(0, Math.round(((px - L) / (W - L - R)) * years)));
+        cursor.setAttribute("x1", x(i)); cursor.setAttribute("x2", x(i)); cursor.setAttribute("visibility", "visible");
+        tip.hidden = false;
+        tip.innerHTML = `<strong>${i === 0 ? "Aujourd'hui" : "Dans " + i + " an" + (i > 1 ? "s" : "")}</strong><br>` +
+          data.scenarios.map((s, k) => `${escapeHtml(s.name)} : ${euros.format(series[k][i])}`).join("<br>") + `<br>Versé : ${euros.format(contributed[i])}`;
+        const left = (x(i) / W) * box.width;
+        tip.style.left = `${Math.min(box.width - tip.offsetWidth, Math.max(0, left - tip.offsetWidth / 2))}px`;
+        tip.style.top = "0px";
+      });
+      svgNode.addEventListener("pointerleave", () => { tip.hidden = true; cursor.setAttribute("visibility", "hidden"); });
+
+      const legend = el("div", "legend");
+      data.scenarios.forEach((s, i) => { const item = el("span", "", `${s.name} (${percent.format(s.annual_rate)}/an)`); const swatch = el("i"); swatch.style.background = colors[i % 3]; item.prepend(swatch); legend.append(item); });
+      const paid = el("span", "", "Versements cumulés, sans les retraits"); const sw = el("i"); sw.style.background = "var(--muted)"; paid.prepend(sw); legend.append(paid);
+      const container = el("div");
+      container.append(wrap, legend);
+      return container;
+    }
+
+    function compact(value) {
+      if (value >= 1e6) return (value / 1e6).toLocaleString("fr-FR", { maximumFractionDigits: 1 }) + " M€";
+      if (value >= 1e3) return Math.round(value / 1e3).toLocaleString("fr-FR") + " k€";
+      return Math.round(value) + " €";
+    }
+    function escapeHtml(text) { return String(text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+
+    // ---------- Lecture des nombres écrits en français ----------
+    function parseAmount(text) {
+      const clean = text.replace(/[  ]/g, " ").toLowerCase();
+      const match = clean.match(/(\d[\d .,]*)\s*(k|mille)?/);
+      if (!match) return null;
+      let raw = match[1].trim().replace(/ /g, "");
+      if (/,\d{1,2}$/.test(raw)) raw = raw.replace(/\./g, "").replace(",", ".");
+      else if (/\.\d{1,2}$/.test(raw) && !/\.\d{3}/.test(raw)) raw = raw.replace(/,/g, "");
+      else raw = raw.replace(/[.,]/g, "");
+      let value = Number(raw);
+      if (!Number.isFinite(value)) return null;
+      if (match[2]) value *= 1000;
+      return Math.round(value * 100) / 100;
+    }
+    function parseYears(text, min, max) {
+      const match = text.match(/\d+/);
+      if (!match) return null;
+      const value = Number(match[0]);
+      return value >= min && value <= max ? value : null;
+    }
+    function parseSaving(text) {
+      if (/tout|différence|difference|reste|max/i.test(text)) return undefined;
+      return parseAmount(text);
+    }
+    function parseGoal(text) {
+      let rest = text;
+      let years = null;
+      const inYears = rest.match(/(?:dans\s+|d'ici\s+|sous\s+)?(\d{1,2})\s*ans?\b/i);
+      const inYear = rest.match(/\ben\s+(20\d\d)\b/i);
+      if (inYears) { years = Number(inYears[1]); rest = rest.replace(inYears[0], " "); }
+      else if (inYear) { years = Number(inYear[1]) - new Date().getFullYear(); rest = rest.replace(inYear[0], " "); }
+      const amount = parseAmount(rest);
+      if (!amount || !years || years < 1 || years > 50) return null;
+      const firstDigit = rest.search(/\d/);
+      let name = (firstDigit > 0 ? rest.slice(0, firstDigit) : rest).replace(/[,:;\-–]+\s*$/, "").replace(/\b(pour|un|une|de|d')\s*$/i, "").trim();
+      if (!name) name = "Objectif " + (plan.goals.length + 1);
+      return { name: name.charAt(0).toUpperCase() + name.slice(1, 60), amount, in_years: years };
+    }
+
+    // ---------- Modes, envoi et démarrage ----------
+    function setBusy(value) { busy = value; send.disabled = value; }
+
+    function welcome() {
+      const box = el("section", "welcome");
+      box.innerHTML = `<h2>Bonjour, je suis Vigie</h2><p>Pose-moi tes questions de finance en langage courant. Je réponds à partir de documents fiables et je cite toujours mes sources.</p>
+        <div class="pillars"><div><strong>Sourcé</strong>Chaque réponse renvoie au passage exact.</div><div><strong>Honnête</strong>Je dis quand je ne trouve pas.</div><div><strong>Sans conseil</strong>J'informe, je ne vends rien.</div></div>`;
+      const chips = el("div", "chips");
+      const examples = ["Qu'est-ce qu'un crypto-actif ?", "Quel est le plafond du livret A ?", "Quelle différence entre un PEL et un CEL ?", "Que faire si ma carte est volée ?"];
+      for (const text of examples) {
+        const chip = el("button", "chip", text); chip.type = "button";
+        chip.addEventListener("click", () => submit(text));
+        chips.append(chip);
+      }
+      const planChip = el("button", "chip primary", "Faire un plan financier"); planChip.type = "button";
+      planChip.addEventListener("click", () => setMode("plan"));
+      chips.append(planChip);
+      box.append(chips);
+      thread.append(box);
+    }
+
+    function setMode(next, restart = false, keepThread = false) {
+      mode = next;
+      $("mode-ask").setAttribute("aria-pressed", String(next === "ask"));
+      $("mode-plan").setAttribute("aria-pressed", String(next === "plan"));
+      if (next === "plan") {
+        hint.textContent = "Simulation selon tes hypothèses, sans conseil en placement.";
+        if (restart || !plan || !planResultBubble) { planResultBubble = null; startPlan(); }
+        else setQuick([{ label: "Refaire le plan", action: () => setMode("plan", true) }, { label: "Poser une question", action: () => setMode("ask") }]);
+      } else {
+        hint.textContent = "Vigie est une IA et peut se tromper. Vérifie les sources avant d'agir.";
+        input.placeholder = "Pose ta question…";
+        setQuick([]);
+        if (plan && planStep < planSteps.length && !planResultBubble && !keepThread) say("Plan mis en pause. Tu peux le reprendre avec l'onglet « Plan financier ».");
+      }
+      input.focus();
+    }
+
+    function submit(text) {
+      const value = (text ?? input.value).trim();
+      if (!value || busy) return;
+      input.value = "";
+      autosize();
+      if (mode === "plan" && plan && planStep < planSteps.length) return answerPlan(value);
+      if (lastPlan && answerAboutPlan(value)) return;
+      ask(value);
+    }
+
+    function autosize() { input.style.height = "auto"; input.style.height = Math.min(160, input.scrollHeight) + "px"; }
+
+    $("form").addEventListener("submit", (event) => { event.preventDefault(); submit(); });
+    input.addEventListener("input", autosize);
+    input.addEventListener("keydown", (event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submit(); } });
+    $("mode-ask").addEventListener("click", () => setMode("ask"));
+    $("mode-plan").addEventListener("click", () => setMode("plan"));
+    $("reset").addEventListener("click", () => {
+      previousQuestion = ""; plan = null; planStep = 0; planResultBubble = null; lastPlan = null;
+      thread.replaceChildren(); welcome(); setMode("ask", false, true);
     });
+
+    welcome();
+    input.focus();
   </script>
 </body>
 </html>

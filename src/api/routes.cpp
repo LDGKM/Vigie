@@ -8,12 +8,15 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <stdexcept>
 #include <sstream>
 #include <string>
 #include <thread>
 #include <unordered_map>
 #include <utility>
 #include <vector>
+
+#include "plan/planner.hpp"
 
 namespace vigie {
 namespace {
@@ -235,6 +238,125 @@ private:
     unsigned long long next_id_ = 1;
 };
 
+double number_or(const crow::json::rvalue& body, const char* key, double fallback) {
+    if (!body.has(key)) {
+        return fallback;
+    }
+    const auto& value = body[key];
+    if (value.t() != crow::json::type::Number) {
+        throw std::invalid_argument(std::string("Le champ \"") + key + "\" doit être un nombre.");
+    }
+    return value.d();
+}
+
+plan::PlanInput read_plan(const crow::json::rvalue& body) {
+    plan::PlanInput input;
+    if (body.has("age")) {
+        input.age = static_cast<int>(number_or(body, "age", 0));
+    }
+    input.horizon_years = static_cast<int>(number_or(body, "horizon_years", 10));
+    input.monthly_income = number_or(body, "monthly_income", 0);
+    input.monthly_expenses = number_or(body, "monthly_expenses", 0);
+    input.current_savings = number_or(body, "current_savings", 0);
+    if (body.has("monthly_saving")) {
+        input.monthly_saving = number_or(body, "monthly_saving", 0);
+    }
+    input.saving_growth = number_or(body, "saving_growth", 0);
+    input.inflation = number_or(body, "inflation", 0.02);
+    input.emergency_months = static_cast<int>(number_or(body, "emergency_months", 3));
+
+    if (body.has("scenarios")) {
+        for (const auto& item : body["scenarios"]) {
+            input.scenarios.push_back({item.has("name") ? std::string(item["name"].s()) : "Hypothèse",
+                                       number_or(item, "annual_rate", 0)});
+        }
+    } else {
+        input.scenarios = {{"Prudent", 0.01}, {"Central", 0.03}, {"Dynamique", 0.05}};
+    }
+    if (body.has("goals")) {
+        for (const auto& item : body["goals"]) {
+            input.goals.push_back({item.has("name") ? std::string(item["name"].s()) : "Objectif",
+                                   number_or(item, "amount", 0), static_cast<int>(number_or(item, "in_years", 1))});
+        }
+    }
+    return input;
+}
+
+crow::json::wvalue plan_json(const plan::PlanResult& result) {
+    crow::json::wvalue body;
+    body["monthly_capacity"] = result.monthly_capacity;
+    body["monthly_saving"] = result.monthly_saving;
+    body["saving_rate"] = result.saving_rate;
+    body["emergency_target"] = result.emergency_target;
+    set_optional(body, "months_to_emergency", result.months_to_emergency);
+    body["central"] = static_cast<int>(result.central);
+    set_optional(body, "monthly_saving_for_all_goals", result.monthly_saving_for_all_goals);
+
+    crow::json::wvalue::list scenarios;
+    for (const plan::Scenario& scenario : result.scenarios) {
+        crow::json::wvalue item;
+        item["name"] = scenario.name;
+        item["annual_rate"] = scenario.annual_rate;
+        scenarios.push_back(std::move(item));
+    }
+    body["scenarios"] = std::move(scenarios);
+
+    crow::json::wvalue::list years;
+    for (const plan::YearRow& row : result.years) {
+        crow::json::wvalue item;
+        item["year"] = row.year;
+        set_optional(item, "age", row.age);
+        item["contributed"] = row.contributed;
+        crow::json::wvalue::list capital;
+        for (const double value : row.capital) {
+            capital.emplace_back(value);
+        }
+        item["capital"] = std::move(capital);
+        item["central_in_todays_euros"] = row.central_in_todays_euros;
+        crow::json::wvalue::list paid;
+        for (const std::string& name : row.goals_paid) {
+            paid.emplace_back(name);
+        }
+        item["goals_paid"] = std::move(paid);
+        years.push_back(std::move(item));
+    }
+    body["years"] = std::move(years);
+
+    crow::json::wvalue::list goals;
+    for (const plan::GoalResult& goal : result.goals) {
+        crow::json::wvalue item;
+        item["name"] = goal.name;
+        item["in_years"] = goal.in_years;
+        item["amount_today"] = goal.amount_today;
+        item["amount_then"] = goal.amount_then;
+        item["reached"] = goal.reached;
+        item["shortfall"] = goal.shortfall;
+        goals.push_back(std::move(item));
+    }
+    body["goals"] = std::move(goals);
+
+    crow::json::wvalue::list warnings;
+    for (const std::string& warning : result.warnings) {
+        warnings.emplace_back(warning);
+    }
+    body["warnings"] = std::move(warnings);
+    return body;
+}
+
+crow::response handle_plan(const crow::request& request) {
+    const auto body = crow::json::load(request.body);
+    if (!body || body.t() != crow::json::type::Object) {
+        return error_response(400, "invalid_json", "Le corps de la requête doit être un objet JSON.");
+    }
+    try {
+        return json_response(200, plan_json(plan::simulate(read_plan(body))));
+    } catch (const std::invalid_argument& error) {
+        return error_response(400, "invalid_plan", error.what());
+    } catch (const std::exception& error) {
+        return error_response(400, "invalid_plan", "Les données du plan sont incomplètes ou mal formées.");
+    }
+}
+
 }  // namespace
 
 void register_routes(crow::SimpleApp& app, const Config& config, const Assistant& assistant) {
@@ -255,6 +377,11 @@ void register_routes(crow::SimpleApp& app, const Config& config, const Assistant
     // Reçoit une question et renvoie une réponse avec ses sources.
     CROW_ROUTE(app, "/ask").methods(crow::HTTPMethod::POST)([&assistant](const crow::request& request) {
         return handle_ask(request, assistant);
+    });
+
+    // Simule un plan d'épargne. Calcul déterministe, sans modèle de langage.
+    CROW_ROUTE(app, "/plan").methods(crow::HTTPMethod::POST)([](const crow::request& request) {
+        return handle_plan(request);
     });
 
     // Lance une question en arrière-plan. La page suit ensuite son avancement.

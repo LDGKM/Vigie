@@ -29,7 +29,7 @@ struct Answer {
     std::vector<Source> sources;
     std::string engine;
     std::string model;   // Vide si aucune IA n'a rédigé la réponse.
-    std::string status;  // found, not_found ou unconfirmed.
+    std::string status;  // found, not_found, unconfirmed, chat (échange simple) ou plan (simulateur proposé).
     std::string question;  // Question traitée, réécrite si elle dépendait de la précédente.
 };
 

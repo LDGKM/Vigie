@@ -9,6 +9,7 @@
 
 #include "core/followup.hpp"
 #include "core/grounding.hpp"
+#include "core/smalltalk.hpp"
 
 namespace vigie {
 namespace {
@@ -55,7 +56,11 @@ std::string Assistant::standalone_question(const std::string& question, const st
 
 Answer Assistant::answer(const std::string& asked, const PassagesFound& on_passages,
                          const std::string& previous_question) const {
-    const std::string question = standalone_question(asked, previous_question);
+    if (const auto reply = small_talk(asked)) {
+        const bool plan = reply->kind == ChatKind::PlanOffer;
+        return Answer{reply->text, {}, "chat", "", plan ? "plan" : "chat", asked};
+    }
+    const std::string question = standalone_question(without_greeting(asked), previous_question);
     Answer answer = answer_standalone(question, on_passages);
     answer.question = question;
     return answer;

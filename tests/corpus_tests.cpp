@@ -8,6 +8,8 @@
 
 #include "core/followup.hpp"
 #include "core/grounding.hpp"
+#include "core/smalltalk.hpp"
+#include "plan/planner.hpp"
 #include "corpus/chunker.hpp"
 #include "corpus/embedder.hpp"
 #include "corpus/extract_html.hpp"
@@ -264,6 +266,52 @@ void test_embedder() {
 
 }  // namespace
 
+void test_small_talk() {
+    check(vigie::small_talk("Bonjour").has_value(), "salutation");
+    check(vigie::small_talk("merci beaucoup !").has_value(), "remerciement");
+    check(vigie::small_talk("Qui es-tu ?").has_value(), "presentation");
+    check(!vigie::small_talk("Quel est le plafond du livret A ?").has_value(), "question documentaire");
+    check(!vigie::small_talk("Qu'est-ce qu'un plan d'épargne logement ?").has_value(), "produit d'epargne");
+    const auto plan = vigie::small_talk("Je voudrais faire un plan financier sur 10 ans");
+    check(plan && plan->kind == vigie::ChatKind::PlanOffer, "projet d'epargne");
+    check(vigie::without_greeting("Bonjour Vigie, quel est le plafond du livret A ?") == "quel est le plafond du livret A ?",
+          "salutation retiree");
+}
+
+void test_planner() {
+    using namespace vigie::plan;
+    PlanInput input;
+    input.horizon_years = 2;
+    input.monthly_income = 2000;
+    input.monthly_expenses = 1500;
+    input.current_savings = 1000;
+    input.inflation = 0.0;
+    input.scenarios = {{"Nul", 0.0}};
+    input.goals = {{"Voyage", 5000, 1}, {"Voiture", 10000, 2}};
+    const PlanResult result = simulate(input);
+    check(std::abs(result.monthly_saving - 500) < 1e-9, "epargne par defaut");
+    check(std::abs(result.years[0].capital[0] - 2000) < 1e-6, "capital apres objectif");
+    check(result.goals[0].reached && !result.goals[1].reached, "objectifs atteints ou non");
+    check(std::abs(result.goals[1].shortfall - 2000) < 1e-6, "manque calcule");
+    check(result.monthly_saving_for_all_goals && *result.monthly_saving_for_all_goals == 584, "epargne necessaire");
+    check(result.months_to_emergency && *result.months_to_emergency == 7, "epargne de precaution");
+
+    input.scenarios = {{"Taux", 0.12}};
+    input.goals.clear();
+    input.horizon_years = 1;
+    input.monthly_saving = 0.0;
+    check(std::abs(simulate(input).years[0].capital[0] - 1120) < 1e-6, "interets composes");
+
+    input.horizon_years = 80;
+    bool refused = false;
+    try {
+        simulate(input);
+    } catch (const std::invalid_argument&) {
+        refused = true;
+    }
+    check(refused, "horizon refuse");
+}
+
 void test_followup() {
     check(vigie::may_depend_on_previous("Et pour le PEL ?"), "question de suite courte");
     check(vigie::may_depend_on_previous("Quel est son plafond ?"), "pronom possessif");
@@ -360,6 +408,8 @@ int main() {
     test_answer_check();
     test_html_headings();
     test_followup();
+    test_small_talk();
+    test_planner();
 
     if (failures == 0) {
         std::cout << "Tous les tests sont passes.\n";

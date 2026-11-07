@@ -129,6 +129,8 @@ endfunction()
 add_library(vigie_corpus STATIC
     src/core/grounding.cpp
     src/core/followup.cpp
+    src/core/smalltalk.cpp
+    src/plan/planner.cpp
     src/corpus/chunker.cpp
     src/corpus/embedder.cpp
     src/corpus/extract_html.cpp
