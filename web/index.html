@@ -189,7 +189,7 @@
       if (text !== undefined) node.textContent = text;
       return node;
     }
-    function scrollDown() { window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }); }
+    function scrollDown() { requestAnimationFrame(() => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" })); }
 
     function userMessage(text) {
       const row = el("div", "msg user");

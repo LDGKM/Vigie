@@ -9,6 +9,7 @@
 \usepackage{tabularx}
 \usepackage{xcolor}
 \usepackage{enumitem}
+\usepackage{graphicx}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,shapes.geometric}
 \usepackage{pgfplots}
@@ -52,12 +53,12 @@ Vigie est écrit en C++20. Toute la chaîne tourne en local, sur le processeur, 
 \node[box, left=of check] (answer) {Réponse\\et sources};
 \node[box, below=of q] (plan) {Simulateur\\de plan};
 \draw[arrow] (q) -- (chat);
-\draw[arrow] (chat) -- node[above,font=\scriptsize]{question} (search);
+\draw[arrow] (chat) -- (search);
 \draw[arrow] (search) -- (rerank);
 \draw[arrow] (rerank) -- (llm);
 \draw[arrow] (llm) -- (check);
 \draw[arrow] (check) -- (answer);
-\draw[arrow] (q) -- node[left,font=\scriptsize]{mode plan} (plan);
+\draw[arrow] (q) -- node[right,font=\scriptsize,xshift=1pt]{mode plan} (plan);
 \end{tikzpicture}
 \end{center}
 
@@ -68,6 +69,19 @@ Vigie est écrit en C++20. Toute la chaîne tourne en local, sur le processeur, 
   \item \textbf{Conversation} : une question courte qui renvoie à la précédente (\og Et pour le PEL ? \fg) est réécrite en question complète avant la recherche.
   \item \textbf{Plan financier} : un simulateur déterministe projette l'épargne mois par mois selon les hypothèses de l'utilisateur. Il ne recommande aucun produit.
 \end{itemize}
+
+\begin{figure}[h]
+\centering
+\begin{minipage}[t]{0.56\linewidth}\vspace{0pt}\centering
+\includegraphics[width=\linewidth]{figures/accueil.png}\\[2pt]
+\small (a) Accueil : exemples de questions et accès au plan financier.
+\end{minipage}\hfill
+\begin{minipage}[t]{0.40\linewidth}\vspace{0pt}\centering
+\includegraphics[width=\linewidth]{figures/plan.png}\\[2pt]
+\small (b) Résultat d'un plan sur 15 ans : trois hypothèses, objectifs et curseurs.
+\end{minipage}
+\caption{Interface de Vigie, version 1.0.}
+\end{figure}
 
 \section{Évolution du jeu de données}
 
@@ -88,9 +102,9 @@ Version & Date & Documents & Passages & Changement \\
 
 \begin{center}
 \begin{tikzpicture}
-\begin{axis}[ybar stacked, width=0.82\linewidth, height=5.2cm, bar width=18pt,
+\begin{axis}[ybar stacked, width=0.6\linewidth, height=5.2cm, bar width=18pt,
   symbolic x coords={0.4,0.7,0.8,1.0}, xtick=data, ylabel={Documents},
-  legend style={at={(0.02,0.98)}, anchor=north west, font=\footnotesize, draw=none}, ymin=0,
+  legend style={at={(1.03,0.5)}, anchor=west, font=\footnotesize, draw=none}, ymin=0, enlarge x limits=0.2,
   nodes near coords style={font=\scriptsize}]
 \addplot[fill=gris] coordinates {(0.4,6) (0.7,6) (0.8,6) (1.0,6)};
 \addplot[fill=vigie] coordinates {(0.4,2) (0.7,67) (0.8,67) (1.0,67)};
@@ -153,7 +167,7 @@ Version & Jeu & Rang 1 & Top 3 & Top 5 & MRR & Refus à tort \\
 \end{tikzpicture}
 \end{center}
 
-\paragraph{Lecture.} Le passage de 11 à 115 documents fait baisser les jeux anciens : des fiches Service Public répondent à des questions dont la référence attend la DSP2. Une partie de cette baisse est donc un artefact de la mesure, mais la relecture confirme aussi un vrai recul sur ces cas. Le reclassement de 20 candidats, lus sur 600 caractères, et le glossaire corrigent l'essentiel de cette perte sur le jeu de réglage. L'écart entre réglage et contrôle (\regTopCinqFinal{} contre \valTopCinqFinal{}) mesure le risque de sur-ajustement des réglages.
+\paragraph{Lecture.} Le passage de 11 à 115 documents fait baisser les jeux anciens : des fiches Service Public répondent à des questions dont la référence attend la DSP2. Une partie de cette baisse est donc un artefact de la mesure, mais la relecture confirme aussi un vrai recul sur ces cas. Le reclassement de 20 candidats, lus sur 600 caractères, et le glossaire corrigent l'essentiel de cette perte sur le jeu de réglage. L'écart entre réglage et contrôle (\regTopCinqFinal{} contre \valTopCinqFinal{}) mesure le risque de sur-ajustement des réglages. Le jeu de contrôle revient en version 1.0 à son niveau de la version 0.5, avec 33 documents de plus. Le reclassement de 20 candidats double en revanche le temps de recherche.
 
 \section{Qualité des réponses rédigées}
 \label{sec:qualite}
@@ -175,7 +189,7 @@ Version & Jeu (chaîne complète) & Rédigées & Non confirmées & Fausses & Imp
 \caption{Relecture manuelle. Une réponse fausse contredit sa source ; une réponse imprécise est juste mais incomplète ou mélange deux cas.}
 \end{table}
 
-Le contrôle automatique vérifie les citations et les nombres, pas le sens d'une phrase. Les erreurs restantes sont surtout des confusions de cas, par exemple un délai de contestation appliqué au remboursement. La page rappelle donc de vérifier la réponse dans les passages cités, qui sont toujours affichés.
+Le contrôle automatique vérifie les citations et les nombres, pas le sens d'une phrase. En version 1.0, les deux réponses fausses du jeu de contrôle additionnent deux exigences de fonds propres alors que le texte retient la plus élevée, et attribuent à tort un remboursement immédiat en cas de soupçon de fraude. Les réponses imprécises répondent à un cas voisin de celui demandé (amende pour pratique interdite au lieu de l'amende d'un fournisseur) ou s'appuient sur une fiche pratique plutôt que sur le texte de loi (délai d'un virement). La page rappelle donc de vérifier la réponse dans les passages cités, qui sont toujours affichés.
 
 \section{Vitesse}
 
@@ -191,7 +205,7 @@ Le contrôle automatique vérifie les citations et les nombres, pas le sens d'un
 Simulation d'un plan financier & instantané & \planLatence \\
 Recherche seule, 95\textsuperscript{e} centile, version 0.5 & 6,9 s & --- \\
 Recherche seule, 95\textsuperscript{e} centile, version 1.0 & à mesurer & \rechercheFinale \\
-Refus par la recherche (médiane) & --- & 10 s \\
+Refus par la recherche (médiane), version 1.0 & --- & 15 s \\
 Réponse rédigée complète (médiane), version 1.0 & à mesurer & \chaineFinale \\
 Réécriture d'une question de suite & --- & environ 10 s \\
 Indexation, par nouveau passage & --- & 1,4 s \\
@@ -216,7 +230,7 @@ Questions hors sujet récentes, définitions (version 0.7.1) & 8 refus sur 8 \\
 Demandes de conseil d'achat (\og Dois-je acheter du bitcoin ? \fg) & 3 refus sur 3 \\
 Fausse consigne dans la question & refusée \\
 Fausse consigne cachée dans un passage (test du modèle) & ignorée \\
-Questions de suite (\og Quel est son plafond ? \fg) & 3 bien comprises sur 3 \\
+Questions de suite (\og Quel est son plafond ? \fg, \og Et pour le livret A ? \fg, \og Et ses risques ? \fg) & 3 bien comprises sur 3 \\
 Nouvelle question courte après une autre & non modifiée \\
 Citation inventée ou nombre absent des passages & réponse bloquée \\
 Questions hors corpus, version 1.0 (chaîne complète) & \horsCorpusFinal \\
@@ -225,11 +239,11 @@ Questions hors corpus, version 1.0 (chaîne complète) & \horsCorpusFinal \\
 \caption{Tests de robustesse.}
 \end{table}
 
-\paragraph{Effet de l'élargissement.} Cinq questions écrites comme \og hors corpus \fg{} sont devenues couvertes par les fiches ajoutées (livret A, PEA, PEL, assurance-vie, déclaration en ligne). Vigie y répond désormais avec des sources, sans recommander de produit. Les fichiers de test n'ont pas été modifiés pour rester comparables : ces réponses comptent comme des refus manqués dans les mesures de recherche.
+\paragraph{Effet de l'élargissement.} Cinq questions écrites comme \og hors corpus \fg{} sont devenues couvertes par les fiches ajoutées (livret A, PEA, PEL, assurance-vie, déclaration en ligne). Vigie y répond désormais avec des sources, sans recommander de produit. Les fichiers de test n'ont pas été modifiés pour rester comparables : ces réponses comptent comme des refus manqués dans les mesures de recherche. En version 1.0, sur 26 questions écrites comme hors sujet, 22 sont refusées et 4 reçoivent une réponse sourcée ; l'une d'elles (\og Comment déclarer ses revenus en ligne ? \fg) s'appuie sur une fiche consacrée aux plus-values, ce qui la rend peu pertinente.
 
 \section{Limites}
 \begin{itemize}
-  \item Une réponse sur dix environ reste fausse ou imprécise à la relecture : le contrôle ne vérifie pas le sens.
+  \item Entre une réponse rédigée sur dix et une sur six reste fausse ou imprécise à la relecture : le contrôle ne vérifie pas le sens.
   \item Les jeux de questions sont petits (28 à 50 questions) : un écart de 3,6 points correspond à une seule question.
   \item Une réponse rédigée prend près d'une minute sur un processeur sans carte graphique.
   \item Le simulateur suppose des rendements constants choisis par l'utilisateur. Il ne prévoit rien et ne remplace pas un conseiller enregistré à l'ORIAS.
@@ -264,5 +278,33 @@ Mer. 11 nov. & Marge pour les imprévus et rendu. \\
 \end{enumerate}
 
 \paragraph{Livrables.} Code source sur GitHub (dépôt \texttt{LDGKM/Vigie}), base documentaire décrite dans \texttt{sources.json}, jeux de test et outil \texttt{vigie\_eval}, cahier des charges, notice d'utilisation, présent rapport.
+
+
+\appendix
+\sloppy
+\section{Notice d'utilisation}
+
+\paragraph{Prérequis.} Windows 10 ou 11 en 64 bits, Visual Studio avec les outils C++ (MSVC), CMake et Ninja, 8~Go de mémoire au moins (32~Go recommandés), environ 4~Go d'espace disque pour les modèles.
+
+\paragraph{Installation.} Dans un terminal Visual Studio configuré en x64, à la racine du dépôt :
+\begin{enumerate}
+  \item \texttt{scripts\textbackslash download\_model.ps1} télécharge les trois modèles (vectorisation, reclassement, rédaction) dans \texttt{models/}.
+  \item \texttt{scripts\textbackslash download\_corpus.ps1} télécharge les documents listés dans \texttt{data/corpus/sources.json}.
+  \item \texttt{cmake --preset x64-release} puis \texttt{cmake --build out\textbackslash build\textbackslash x64-release} compilent Vigie.
+  \item \texttt{vigie\_tests.exe} lance les tests, puis \texttt{vigie\_index.exe} construit la base (plusieurs minutes la première fois).
+\end{enumerate}
+
+\paragraph{Lancement.} \texttt{vigie.exe} démarre le serveur sur \texttt{http://127.0.0.1:8080}, accessible seulement depuis l'ordinateur. Si le modèle de rédaction manque, Vigie affiche \og Redaction desactivee \fg{} et montre les passages tels quels.
+
+\paragraph{Utilisation.}
+\begin{itemize}
+  \item \textbf{Questions} : écrire une question en langage courant, puis Entrée. Les passages trouvés apparaissent pendant la rédaction ; un clic sur \texttt{[n]} ouvre la source citée.
+  \item \textbf{Questions de suite} : \og Et pour le PEL ? \fg{} reprend le sujet précédent. La question comprise est affichée. Le bouton \og Nouvelle \fg{} efface la conversation.
+  \item \textbf{Plan financier} : onglet \og Plan financier \fg, puis répondre aux sept questions. Les curseurs modifient les hypothèses ; les questions \og Combien j'aurai dans 5 ans ? \fg{} ou \og Quand atteindrai-je 50\,000~€ ? \fg{} reçoivent une réponse calculée.
+\end{itemize}
+
+\paragraph{Évaluation.} \texttt{vigie\_eval.exe} mesure la recherche sur le jeu de réglage ; \texttt{--questions validation.json} ou \texttt{--questions definitions.json} sur les autres jeux ; \texttt{--no-rerank}, \texttt{--no-glossary} et \texttt{--candidates N} comparent les réglages.
+
+\paragraph{Configuration.} Les variables \texttt{VIGIE\_PORT}, \texttt{VIGIE\_DB\_PATH}, \texttt{VIGIE\_MODEL\_PATH}, \texttt{VIGIE\_RERANKER\_PATH} et \texttt{VIGIE\_LLM\_PATH} remplacent les chemins par défaut.
 
 \end{document}
