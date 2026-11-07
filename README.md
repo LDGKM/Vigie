@@ -79,7 +79,7 @@ Pour créer la base `data/index/vigie.db`, lance `vigie_index.exe` depuis Visual
 .\out\build\x64-release\vigie_index.exe
 ```
 
-L'outil lit les 115 documents, les découpe par article, section ou page, calcule leurs vecteurs sur le processeur, puis enregistre le tout. Cette étape prend plusieurs minutes. Si un document pose problème, la base existante n'est pas modifiée. Les tests se lancent avec `.\out\build\x64-release\vigie_tests.exe`.
+L'outil lit les 144 documents, les découpe par article, section ou page, calcule leurs vecteurs sur le processeur, puis enregistre le tout. Cette étape prend plusieurs minutes. Si un document pose problème, la base existante n'est pas modifiée. Les tests se lancent avec `.\out\build\x64-release\vigie_tests.exe`.
 
 ## Structure
 
@@ -152,6 +152,18 @@ Vigie comprend une question de suite comme « Et pour le PEL ? ». La page envoi
 - Dans ce cas, le modèle la réécrit en question complète. Une réécriture qui ne ressemble pas à une question est écartée : la recherche reçoit alors les deux questions à la suite.
 - La page affiche « Question comprise : … » quand la question a été réécrite. Le bouton « Nouvelle conversation » efface l'historique.
 - Une réécriture ajoute environ 10 s ici. Sur 6 échanges testés, les 3 questions de suite ont été bien comprises, la nouvelle question n'a pas été modifiée, et la fausse consigne a été refusée.
+
+### Interface, échanges simples et plan financier
+
+- La page est un fil de discussion. Les citations `[n]` ouvrent la source correspondante, et les passages sont affichés pendant la rédaction.
+- Les salutations, remerciements et questions sur Vigie reçoivent une réponse immédiate, sans recherche (`src/core/smalltalk.cpp`, statut `chat`). Une demande de plan financier renvoie le statut `plan`, et la page propose le simulateur.
+- Le mode **Plan financier** pose 7 questions (horizon, âge, revenus, dépenses, épargne, versement mensuel, objectifs), puis appelle `POST /plan`. Le calcul est fait en C++ (`src/plan/planner.cpp`), mois par mois, selon trois hypothèses de rendement choisies par l'utilisateur. Il donne l'évolution année par année, l'effet de l'inflation, l'état de chaque objectif et l'épargne mensuelle qui les financerait tous.
+- Après le plan, la page répond à « Combien j'aurai dans 5 ans ? », « Quand atteindrai-je 50 000 € ? » ou « Mes objectifs sont-ils atteints ? » à partir du calcul.
+- Le simulateur ne recommande aucun produit et ne prévoit aucun rendement.
+
+### Rapport
+
+`docs/rapport/rapport.tex` décrit l'évolution de la base, la vitesse, la robustesse et la performance de Vigie, ainsi que le plan de rendu. Pour le compiler : `pdflatex rapport.tex`, deux fois, dans `docs/rapport/`.
 
 ## Modèles locaux
 

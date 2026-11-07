@@ -16,3 +16,9 @@ data/corpus/raw/
 
 # Résultats générés par vigie_eval
 data/eval/results-*.json
+
+# Fichiers produits par LaTeX
+docs/rapport/*.aux
+docs/rapport/*.log
+docs/rapport/*.out
+docs/rapport/*.toc

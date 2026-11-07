@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(Vigie VERSION 0.9.0 LANGUAGES C CXX)
+project(Vigie VERSION 1.0.0 LANGUAGES C CXX)
 
 if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(FATAL_ERROR "Vigie se compile en 64 bits : ouvre un environnement Visual Studio x64.")

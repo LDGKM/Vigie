@@ -50,7 +50,7 @@ bool is_greeting(const std::string& word) {
 }
 
 const char* kPresentation =
-    "Je suis Vigie, un assistant de finance numérique. Je réponds à tes questions à partir de 147 documents "
+    "Je suis Vigie, un assistant de finance numérique. Je réponds à tes questions à partir de plus de 140 documents "
     "fiables : textes européens, fiches de la Banque de France, de Service Public et de l'AMF. Chaque réponse "
     "cite ses sources, et je te dis quand je ne trouve pas l'information. Je peux aussi simuler un plan "
     "d'épargne sur plusieurs années avec toi. Je ne te dirai jamais quoi acheter ou vendre.";
