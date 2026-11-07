@@ -26,6 +26,13 @@
     .meta { margin: 2px 0 10px; color: var(--muted); font-size: 14px; }
     .excerpt { margin: 0 0 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
     .source a { color: var(--accent); font-size: 14px; }
+    #history { margin: 20px 0;  padding: 0; list-style: none; }
+    #history li { margin-bottom: 12px; padding: 12px 16px; border-left: 3px solid var(--line); }
+    #history .asked { margin: 0; font-weight: 600; }
+    #history .said { margin: 4px 0 0; color: var(--muted); }
+    #result .asked { margin: 0 0 4px; font-weight: 600; }
+    #understood { margin: 0 0 8px; color: var(--muted); font-size: 14px; }
+    .secondary { margin-top: 10px; background: transparent; color: var(--accent); border: 1px solid var(--line); }
   </style>
 </head>
 <body>
@@ -36,11 +43,15 @@
       <input id="question" maxlength="1000" placeholder="Pose ta question" aria-label="Question" required>
       <button id="send" type="submit">Envoyer</button>
     </form>
+    <ol id="history" aria-label="Échanges précédents"></ol>
     <section id="result" aria-live="polite" hidden>
+      <p id="asked" class="asked"></p>
+      <p id="understood" hidden></p>
       <p id="message"></p>
       <p id="notice" class="meta" hidden>Réponse rédigée par une IA. Vérifie-la dans les passages cités avant d'agir.</p>
       <div id="sources"></div>
     </section>
+    <button id="reset" class="secondary" type="button" hidden>Nouvelle conversation</button>
   </main>
   <script>
     const form = document.getElementById("form");
@@ -51,6 +62,32 @@
     const message = document.getElementById("message");
     const sources = document.getElementById("sources");
     const notice = document.getElementById("notice");
+    const understood = document.getElementById("understood");
+    const askedLine = document.getElementById("asked");
+    const historyList = document.getElementById("history");
+    const reset = document.getElementById("reset");
+
+    // La question précédente, telle que Vigie l'a comprise, sert à comprendre une question de suite.
+    let previousQuestion = "";
+    let lastExchange = null;
+
+    function archiveLastExchange() {
+      if (!lastExchange) return;
+      const item = document.createElement("li");
+      item.append(element("p", "asked", lastExchange.question), element("p", "said", lastExchange.answer));
+      historyList.append(item);
+      lastExchange = null;
+    }
+
+    reset.addEventListener("click", () => {
+      previousQuestion = "";
+      lastExchange = null;
+      historyList.replaceChildren();
+      result.hidden = true;
+      reset.hidden = true;
+      question.value = "";
+      question.focus();
+    });
 
     function show(text, isError = false) {
       result.hidden = false;
@@ -58,6 +95,11 @@
       message.textContent = text;
       sources.replaceChildren();
       notice.hidden = true;
+    }
+
+    function showUnderstood(asked, resolved) {
+      understood.hidden = !resolved || resolved === asked;
+      understood.textContent = `Question comprise : ${resolved}`;
     }
 
     function element(tag, className, text) {
@@ -101,13 +143,17 @@
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       send.disabled = true;
-      show("Vigie cherche dans ses documents.");
+      archiveLastExchange();
+      const asked = question.value.trim();
+      understood.hidden = true;
+      askedLine.textContent = asked;
+      show("Vigie cherche dans ses documents…");
 
       try {
         const started = await fetch("/ask/start", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ question: question.value }),
+          body: JSON.stringify({ question: asked, previous_question: previousQuestion }),
         });
         const job = await started.json();
         if (!started.ok) {
@@ -125,13 +171,18 @@
           }
           if (data.state === "done") {
             show(data.answer);
+            showUnderstood(asked, data.question);
+            previousQuestion = data.question || asked;
+            lastExchange = { question: asked, answer: data.answer };
+            reset.hidden = false;
+            question.value = "";
             notice.hidden = !(data.status === "found" && data.model);
             showSources(data.sources);
             return;
           }
           if (data.state === "writing" && !writing) {
             writing = true;
-            show("Passages trouvés. Vigie rédige et vérifie sa réponse.");
+            show("Rédaction en cours… Vigie a trouvé les passages ci-dessous et rédige maintenant sa réponse. Cela peut prendre près d'une minute.");
             showSources(data.sources);
           }
         }

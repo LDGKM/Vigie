@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "core/followup.hpp"
 #include "core/grounding.hpp"
 #include "corpus/chunker.hpp"
 #include "corpus/embedder.hpp"
@@ -263,6 +264,26 @@ void test_embedder() {
 
 }  // namespace
 
+void test_followup() {
+    check(vigie::may_depend_on_previous("Et pour le PEL ?"), "question de suite courte");
+    check(vigie::may_depend_on_previous("Quel est son plafond ?"), "pronom possessif");
+    check(vigie::may_depend_on_previous("Ce produit est-il risque ?"), "demonstratif");
+    check(!vigie::may_depend_on_previous("C'est quoi la blockchain ?"), "nouvelle question courte");
+    check(!vigie::may_depend_on_previous("Qu'est-ce que la finance ?"), "est-ce que");
+    check(!vigie::may_depend_on_previous(
+              "Quel est le delai pour signaler une violation de donnees a l'autorite de controle selon le RGPD ?"),
+          "question longue autonome");
+    check(vigie::clean_rewrite("  « Quel est le plafond du PEL ? »\n").value_or("") == "Quel est le plafond du PEL ?",
+          "reformulation nettoyee");
+    check(vigie::clean_rewrite("Question : Quel est le plafond du PEL ?").value_or("") == "Quel est le plafond du PEL ?",
+          "etiquette retiree");
+    check(!vigie::clean_rewrite("Le plafond est de 61 200 EUR [1].\nAutre ligne").has_value(), "reponse refusee");
+    check(!vigie::clean_rewrite("").has_value(), "reformulation vide");
+    check(!vigie::clean_rewrite("La question se comprend seule, je la recopie : Et ?").has_value(), "commentaire refuse");
+    check(vigie::clean_rewrite("Réécriture : Quel est le taux du LDDS ?").value_or("") == "Quel est le taux du LDDS ?",
+          "etiquette de l'exemple retiree");
+}
+
 void test_html_headings() {
     const std::string page =
         "<main><h1>Livret A</h1><p>Un livret reglemente.</p>"
@@ -338,6 +359,7 @@ int main() {
     test_embedder();
     test_answer_check();
     test_html_headings();
+    test_followup();
 
     if (failures == 0) {
         std::cout << "Tous les tests sont passes.\n";

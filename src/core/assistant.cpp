@@ -7,6 +7,7 @@
 #include <string>
 #include <utility>
 
+#include "core/followup.hpp"
 #include "core/grounding.hpp"
 
 namespace vigie {
@@ -33,18 +34,45 @@ std::vector<Source> to_sources(const std::vector<corpus::SearchHit>& hits) {
 Assistant::Assistant(corpus::SearchIndex index, const llm::Generator* generator)
     : index_(std::move(index)), generator_(generator) {}
 
-Answer Assistant::answer(const std::string& question, const PassagesFound& on_passages) const {
+std::string Assistant::standalone_question(const std::string& question, const std::string& previous_question) const {
+    if (previous_question.empty() || !may_depend_on_previous(question)) {
+        return question;
+    }
+    if (generator_ != nullptr) {
+        try {
+            const std::string raw =
+                generator_->generate(followup_system_prompt(), followup_user_prompt(previous_question, question));
+            if (const auto rewritten = clean_rewrite(raw)) {
+                return *rewritten;
+            }
+        } catch (const std::exception& error) {
+            std::cerr << "Reformulation impossible : " << error.what() << std::endl;
+        }
+    }
+    // Sans reformulation sûre, la recherche reçoit les deux questions.
+    return previous_question + " " + question;
+}
+
+Answer Assistant::answer(const std::string& asked, const PassagesFound& on_passages,
+                         const std::string& previous_question) const {
+    const std::string question = standalone_question(asked, previous_question);
+    Answer answer = answer_standalone(question, on_passages);
+    answer.question = question;
+    return answer;
+}
+
+Answer Assistant::answer_standalone(const std::string& question, const PassagesFound& on_passages) const {
     std::vector<corpus::SearchHit> hits = index_.search(question);
     const std::string engine = index_.uses_reranking() ? "reranked" : index_.uses_semantic_search() ? "hybrid" : "keywords";
 
     if (hits.empty()) {
-        return Answer{kNotFound, {}, engine, "", "not_found"};
+        return Answer{kNotFound, {}, engine, "", "not_found", {}};
     }
 
     if (generator_ == nullptr) {
         return Answer{"Voici les passages les plus proches de ta question. Ils sont cités tels quels, "
                       "sans rédaction par une IA.",
-                      to_sources(hits), engine, "", "found"};
+                      to_sources(hits), engine, "", "found", {}};
     }
 
     hits.resize(std::min(hits.size(), kPassagesForAnswer));
@@ -63,7 +91,7 @@ Answer Assistant::answer(const std::string& question, const PassagesFound& on_pa
     }
 
     if (checked.check == AnswerCheck::NotFound) {
-        return Answer{kNotFound, {}, engine, model, "not_found"};
+        return Answer{kNotFound, {}, engine, model, "not_found", {}};
     }
 
     if (checked.check == AnswerCheck::Unconfirmed) {
@@ -71,10 +99,10 @@ Answer Assistant::answer(const std::string& question, const PassagesFound& on_pa
         std::cerr << "Reponse rejetee : " << text << std::endl;
         return Answer{"Je n'ai pas pu confirmer une réponse rédigée. Voici les passages les plus proches, "
                       "cités tels quels.",
-                      to_sources(hits), engine, model, "unconfirmed"};
+                      to_sources(hits), engine, model, "unconfirmed", {}};
     }
 
-    Answer answer{std::move(checked.text), {}, engine, model, "found"};
+    Answer answer{std::move(checked.text), {}, engine, model, "found", {}};
     for (const int number : checked.citations) {
         answer.sources.push_back(to_source(hits[static_cast<std::size_t>(number - 1)], number));
     }

@@ -30,6 +30,7 @@ struct Answer {
     std::string engine;
     std::string model;   // Vide si aucune IA n'a rédigé la réponse.
     std::string status;  // found, not_found ou unconfirmed.
+    std::string question;  // Question traitée, réécrite si elle dépendait de la précédente.
 };
 
 // Point d'entrée du moteur : l'API HTTP ne connaît que cette classe.
@@ -42,9 +43,14 @@ public:
 
     // Lève corpus::IndexUnavailable si la base documentaire n'est pas prête.
     // on_passages est appelé dès la fin de la recherche, avant la rédaction.
-    Answer answer(const std::string& question, const PassagesFound& on_passages = {}) const;
+    // previous_question, si elle est fournie, sert à comprendre une question de suite.
+    Answer answer(const std::string& question, const PassagesFound& on_passages = {},
+                  const std::string& previous_question = {}) const;
 
 private:
+    Answer answer_standalone(const std::string& question, const PassagesFound& on_passages) const;
+    std::string standalone_question(const std::string& question, const std::string& previous_question) const;
+
     corpus::SearchIndex index_;
     const llm::Generator* generator_;
 };

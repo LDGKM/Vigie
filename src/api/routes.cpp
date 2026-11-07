@@ -69,7 +69,8 @@ crow::response serve_index(const std::string& web_dir) {
 }
 
 // Lit la question d'une requête. Renvoie une erreur HTTP si elle n'est pas utilisable.
-std::optional<crow::response> read_question(const crow::request& request, std::string& question) {
+std::optional<crow::response> read_question(const crow::request& request, std::string& question,
+                                           std::string& previous_question) {
     const auto body = crow::json::load(request.body);
     if (!body || body.t() != crow::json::type::Object) {
         return error_response(400, "invalid_json", "Le corps de la requête doit être un objet JSON.");
@@ -86,6 +87,18 @@ std::optional<crow::response> read_question(const crow::request& request, std::s
     }
     if (question.size() > kMaxQuestionBytes) {
         return error_response(413, "question_too_long", "La question est trop longue.");
+    }
+
+    // Facultatif : la question précédente, telle que Vigie l'a comprise.
+    previous_question.clear();
+    if (body.has("previous_question")) {
+        if (body["previous_question"].t() != crow::json::type::String) {
+            return error_response(400, "invalid_previous_question", "Le champ \"previous_question\" doit être un texte.");
+        }
+        previous_question = trim(std::string(body["previous_question"].s()));
+        if (previous_question.size() > kMaxQuestionBytes) {
+            return error_response(413, "question_too_long", "La question précédente est trop longue.");
+        }
     }
     return std::nullopt;
 }
@@ -116,18 +129,20 @@ crow::json::wvalue answer_json(const Answer& answer) {
     response["engine"] = answer.engine;
     response["model"] = answer.model;
     response["status"] = answer.status;
+    response["question"] = answer.question;
     response["sources"] = sources_json(answer.sources);
     return response;
 }
 
 crow::response handle_ask(const crow::request& request, const Assistant& assistant) {
     std::string question;
-    if (auto problem = read_question(request, question)) {
+    std::string previous_question;
+    if (auto problem = read_question(request, question, previous_question)) {
         return std::move(*problem);
     }
 
     try {
-        return json_response(200, answer_json(assistant.answer(question)));
+        return json_response(200, answer_json(assistant.answer(question, {}, previous_question)));
     } catch (const corpus::IndexUnavailable&) {
         return error_response(503, "index_unavailable", kIndexNotReady);
     } catch (const std::exception& error) {
@@ -146,7 +161,7 @@ struct Job {
 
 class Jobs {
 public:
-    std::string start(const Assistant& assistant, const std::string& question) {
+    std::string start(const Assistant& assistant, const std::string& question, const std::string& previous_question) {
         auto job = std::make_shared<Job>();
         std::string id;
         {
@@ -160,7 +175,9 @@ public:
             }
         }
 
-        std::thread([this, &assistant, job, question] { run(assistant, *job, question); }).detach();
+        std::thread([this, &assistant, job, question, previous_question] {
+            run(assistant, *job, question, previous_question);
+        }).detach();
         return id;
     }
 
@@ -186,7 +203,7 @@ public:
 private:
     static constexpr std::size_t kMaximumJobs = 32;
 
-    void run(const Assistant& assistant, Job& job, const std::string& question) {
+    void run(const Assistant& assistant, Job& job, const std::string& question, const std::string& previous_question) {
         const auto on_passages = [&](const std::vector<Source>& sources) {
             const std::lock_guard lock(mutex_);
             job.sources = sources;
@@ -194,7 +211,7 @@ private:
         };
 
         try {
-            Answer answer = assistant.answer(question, on_passages);
+            Answer answer = assistant.answer(question, on_passages, previous_question);
             const std::lock_guard lock(mutex_);
             job.answer = std::move(answer);
             job.state = "done";
@@ -244,11 +261,12 @@ void register_routes(crow::SimpleApp& app, const Config& config, const Assistant
     auto jobs = std::make_shared<Jobs>();
     CROW_ROUTE(app, "/ask/start").methods(crow::HTTPMethod::POST)([&assistant, jobs](const crow::request& request) {
         std::string question;
-        if (auto problem = read_question(request, question)) {
+        std::string previous_question;
+        if (auto problem = read_question(request, question, previous_question)) {
             return std::move(*problem);
         }
         crow::json::wvalue body;
-        body["job"] = jobs->start(assistant, question);
+        body["job"] = jobs->start(assistant, question, previous_question);
         return json_response(202, body);
     });
 

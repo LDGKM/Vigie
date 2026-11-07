@@ -144,6 +144,15 @@ La consigne demande maintenant une réponse dès la première phrase, sans ajout
 - Pour une définition, la réponse explique aussi le fonctionnement ou l'usage, si les extraits le disent.
 - La page affiche les passages trouvés dès la fin de la recherche, puis la réponse une fois vérifiée. Le texte n'est jamais montré avant le contrôle. L'API correspondante est `POST /ask/start`, puis `GET /ask/job/<id>`. `POST /ask` reste disponible.
 
+### Conversation
+
+Vigie comprend une question de suite comme « Et pour le PEL ? ». La page envoie la question précédente, telle que Vigie l'a comprise, dans le champ facultatif `previous_question`.
+
+- Une question est traitée comme une question de suite seulement si elle est courte, au plus 12 mots, et si elle commence par une liaison (« et », « mais », « pour »…) ou contient un renvoi (« son », « elle », « ce produit »…). Une nouvelle question comme « C'est quoi la blockchain ? » n'est donc pas modifiée.
+- Dans ce cas, le modèle la réécrit en question complète. Une réécriture qui ne ressemble pas à une question est écartée : la recherche reçoit alors les deux questions à la suite.
+- La page affiche « Question comprise : … » quand la question a été réécrite. Le bouton « Nouvelle conversation » efface l'historique.
+- Une réécriture ajoute environ 10 s ici. Sur 6 échanges testés, les 3 questions de suite ont été bien comprises, la nouvelle question n'a pas été modifiée, et la fausse consigne a été refusée.
+
 ## Modèles locaux
 
 - Vectorisation : `bge-m3`, créé par BAAI sous licence MIT, dans [une conversion GGUF publique](https://huggingface.co/lm-kit/bge-m3-gguf).
