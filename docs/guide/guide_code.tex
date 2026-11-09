@@ -1,0 +1,959 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=2.2cm]{geometry}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{amsmath}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,calc}
+\usepackage[hidelinks]{hyperref}
+
+\definecolor{vigie}{HTML}{0F6E56}
+\definecolor{ocre}{HTML}{C27C0E}
+\definecolor{gris}{HTML}{8A9690}
+\definecolor{fond}{HTML}{F5F7F4}
+\setlist{itemsep=2pt,topsep=4pt}
+\setcounter{tocdepth}{2}
+
+% ---------- Mise en forme du code ----------
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  numbers=left, numberstyle=\tiny\color{gris}, numbersep=6pt,
+  backgroundcolor=\color{fond}, frame=single, rulecolor=\color{gris!40},
+  breaklines=true, breakatwhitespace=false, postbreak=\mbox{\textcolor{gris}{$\hookrightarrow$}\space},
+  keywordstyle=\color{vigie}\bfseries, commentstyle=\color{ocre}\itshape, stringstyle=\color{gris!70!black},
+  showstringspaces=false, tabsize=4, columns=fullflexible, keepspaces=true,
+  extendedchars=true,
+  literate=
+    {à}{{\`a}}1 {â}{{\^a}}1 {ç}{{\c c}}1 {é}{{\'e}}1 {è}{{\`e}}1 {ê}{{\^e}}1 {î}{{\^i}}1 {ô}{{\^o}}1 {û}{{\^u}}1
+    {À}{{\`A}}1 {Â}{{\^A}}1 {È}{{\`E}}1 {É}{{\'E}}1 {œ}{{\oe}}1
+    {«}{{\guillemotleft}}1 {»}{{\guillemotright}}1 {·}{{\textperiodcentered}}1
+    {–}{{--}}1 {—}{{---}}1 {‘}{{\textquoteleft}}1 {’}{{\textquoteright}}1 {…}{{\dots}}1 {€}{{\texteuro}}1
+    {＋}{{+}}1
+}
+\lstdefinelanguage{JavaScript}{
+  keywords={const,let,var,function,return,if,else,for,of,in,new,async,await,try,catch,finally,true,false,null,undefined,class,throw,typeof},
+  sensitive=true, comment=[l]{//}, morecomment=[s]{/*}{*/}, morestring=[b]", morestring=[b]', morestring=[b]`
+}
+\lstdefinelanguage{CMake}{
+  keywords={add_library,add_executable,target_link_libraries,target_include_directories,target_compile_definitions,target_compile_options,set,if,else,endif,function,endfunction,FetchContent_Declare,FetchContent_MakeAvailable,include,project,cmake_minimum_required,message,find_package,add_test,enable_testing,add_custom_command,set_target_properties},
+  sensitive=false, comment=[l]{\#}, morestring=[b]"
+}
+
+% Encadré « à retenir »
+\newcommand{\retenir}[1]{\par\smallskip\noindent\colorbox{vigie!8}{\parbox{\dimexpr\linewidth-2\fboxsep}{\small\textbf{À retenir :} #1}}\par\smallskip}
+\newcommand{\fichier}[1]{\texttt{#1}}
+
+\title{\textbf{Vigie} --- Guide du code source\\[4pt]
+\large Principe, code commenté et liaisons entre les fichiers}
+\author{Déogratias Loutou --- M1 Informatique et Mobilité, UHA}
+\date{Version 1.0 --- branche \texttt{vigie-rendu-v1}, 9 novembre 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Ce guide permet de lire et de comprendre tout le code de Vigie, assistant RAG de finance numérique écrit en C++20. La première partie explique le principe : ce que fait le programme, ses deux flux de travail et l'organisation du dépôt. La deuxième montre comment les fichiers sont reliés : dépendances de compilation, inclusions et parcours complet d'une question. La troisième reprend chaque module avec ses extraits de code commentés. L'annexe contient le code source complet, numéroté ligne par ligne, auquel renvoient les extraits.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+% =====================================================================
+\part{Principe}
+% =====================================================================
+
+\section{Ce que fait Vigie}
+
+Vigie répond en français à des questions de finance numérique. Il ne répond jamais de mémoire : il cherche d'abord des passages dans une base de documents fiables, puis il rédige une réponse courte à partir de ces seuls passages et cite ses sources. S'il ne trouve rien d'assez proche, il le dit. Cette méthode s'appelle \textbf{RAG}, pour \emph{Retrieval-Augmented Generation} : génération augmentée par la recherche.
+
+Vigie propose aussi un \textbf{simulateur de plan d'épargne}. Ce calcul ne passe pas par l'intelligence artificielle : c'est un programme C++ déterministe qui projette l'épargne mois par mois selon les hypothèses de l'utilisateur.
+
+\subsection{Vocabulaire}
+
+\begin{description}[style=nextline, leftmargin=1.2cm]
+  \item[Document] Un texte de la base : règlement européen, fiche de la Banque de France ou de Service Public, guide de l'AMF. Chacun est décrit par une \emph{fiche} dans \fichier{data/corpus/sources.json}.
+  \item[Passage] Un morceau de document d'environ 1\,200 caractères, rattaché à son article, sa section ou sa page. C'est l'unité que la recherche retrouve et que la réponse cite. On l'appelle \emph{chunk} dans le code.
+  \item[Jeton] Un morceau de mot que les modèles manipulent (\emph{token}). Un mot français fait en moyenne un à deux jetons.
+  \item[Vecteur] Une liste de 1\,024 nombres qui résume le sens d'un texte. Deux textes de sens proche ont des vecteurs proches. Le modèle \texttt{bge-m3} calcule ces vecteurs (\emph{embeddings}).
+  \item[Reclassement] Une seconde lecture, plus précise mais plus lente, qui note chaque couple (question, passage). Le modèle \texttt{bge-reranker-v2-m3} s'en charge (\emph{reranking}).
+  \item[Modèle de langage] Le modèle qui rédige la réponse, ici \texttt{Qwen3.5-4B}. Il reçoit un \emph{prompt} : une consigne (le \og système \fg) et un message (la question et les passages).
+  \item[GGUF] Le format de fichier des trois modèles, lu par la bibliothèque \texttt{llama.cpp}.
+\end{description}
+
+\subsection{Les trois modèles}
+
+\begin{center}
+\small
+\begin{tabularx}{\linewidth}{@{}l l X@{}}
+\toprule
+Modèle & Rôle & Utilisé par \\
+\midrule
+\texttt{bge-m3} (438 Mo) & Vecteurs de sens & \fichier{corpus/embedder.cpp}, à l'indexation et à chaque question \\
+\texttt{bge-reranker-v2-m3} (438 Mo) & Note question/passage & \fichier{corpus/reranker.cpp}, à chaque question \\
+\texttt{Qwen3.5-4B} (2,7 Go) & Rédaction et réécriture & \fichier{llm/local\_generator.cpp}, à chaque réponse rédigée \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+Tous tournent sur le processeur, sans carte graphique ni connexion Internet.
+
+\section{Les deux flux}
+
+Le code se divise en deux flux indépendants, reliés par un seul fichier : la base SQLite \fichier{data/index/vigie.db}.
+
+\subsection{Flux 1 --- Préparer la base (hors ligne)}
+
+Le programme \fichier{vigie\_index} lit les documents, les découpe en passages, calcule leurs vecteurs et écrit la base. On le lance une fois, puis à chaque ajout de documents.
+
+\begin{center}
+\begin{tikzpicture}[node distance=4mm and 5mm, every node/.style={font=\small},
+  box/.style={draw=vigie, rounded corners=3pt, fill=vigie!6, minimum height=10mm, align=center, text width=22mm},
+  file/.style={draw=ocre, fill=ocre!8, minimum height=10mm, align=center, text width=22mm},
+  arrow/.style={-{Stealth[length=2mm]}, thick, vigie}]
+\node[file] (src) {sources.json\\+ raw/};
+\node[box, right=of src] (man) {Lire les fiches\\\scriptsize manifest};
+\node[box, right=of man] (ext) {Extraire le texte\\\scriptsize extract\_html/pdf};
+\node[box, right=of ext] (chk) {Découper\\\scriptsize chunker};
+\node[box, below=of chk] (emb) {Vectoriser\\\scriptsize embedder};
+\node[box, left=of emb] (sto) {Écrire la base\\\scriptsize index\_store};
+\node[file, left=of sto] (db) {vigie.db};
+\draw[arrow] (src) -- (man); \draw[arrow] (man) -- (ext); \draw[arrow] (ext) -- (chk);
+\draw[arrow] (chk) -- (emb); \draw[arrow] (emb) -- (sto); \draw[arrow] (sto) -- (db);
+\end{tikzpicture}
+\end{center}
+
+\subsection{Flux 2 --- Répondre (en ligne)}
+
+Le programme \fichier{vigie} démarre un petit serveur web sur \texttt{127.0.0.1:8080}. La page \fichier{web/index.html} lui envoie les questions ; le serveur cherche dans la base, fait rédiger la réponse, la vérifie et renvoie le tout.
+
+\begin{center}
+\begin{tikzpicture}[node distance=4mm and 4mm, every node/.style={font=\small},
+  box/.style={draw=vigie, rounded corners=3pt, fill=vigie!6, minimum height=10mm, align=center, text width=20mm},
+  file/.style={draw=ocre, fill=ocre!8, minimum height=10mm, align=center, text width=18mm},
+  arrow/.style={-{Stealth[length=2mm]}, thick, vigie}]
+\node[file] (page) {Page web\\\scriptsize index.html};
+\node[box, right=of page] (api) {API HTTP\\\scriptsize routes};
+\node[box, right=of api] (ass) {Assistant\\\scriptsize assistant};
+\node[box, right=of ass] (sea) {Recherche\\\scriptsize search};
+\node[file, right=of sea] (db) {vigie.db};
+\node[box, below=of sea] (gen) {Rédaction\\\scriptsize generator};
+\node[box, left=of gen] (chk) {Contrôle\\\scriptsize grounding};
+\node[box, below=of api] (plan) {Simulateur\\\scriptsize planner};
+\draw[arrow] (page) -- (api); \draw[arrow] (api) -- (ass); \draw[arrow] (ass) -- (sea);
+\draw[arrow] (sea) -- (db); \draw[arrow] (sea) -- (gen); \draw[arrow] (gen) -- (chk); \draw[arrow] (chk) -- (ass);
+\draw[arrow] (api) -- node[left, font=\scriptsize]{/plan} (plan);
+\end{tikzpicture}
+\end{center}
+
+\retenir{les deux flux partagent la même bibliothèque \fichier{vigie\_corpus}, mais ne se parlent qu'à travers \fichier{vigie.db}. On peut reconstruire la base pendant que le serveur tourne : chaque recherche ouvre la base à nouveau.}
+
+\section{Organisation du dépôt}
+
+\begin{center}
+\small
+\begin{tabularx}{\linewidth}{@{}l X@{}}
+\toprule
+Chemin & Contenu \\
+\midrule
+\fichier{CMakeLists.txt}, \fichier{CMakePresets.json} & Compilation : dépendances, bibliothèque et exécutables \\
+\fichier{src/main.cpp}, \fichier{src/config.*} & Démarrage du serveur et lecture de la configuration \\
+\fichier{src/api/} & Routes HTTP (questions, suivi, plan) \\
+\fichier{src/core/} & Logique de l'assistant : orchestration, prompts et contrôle, questions de suite, échanges simples \\
+\fichier{src/corpus/} & Base documentaire : lecture, extraction, découpage, stockage, vecteurs, reclassement, recherche \\
+\fichier{src/llm/} & Interface du modèle de langage et version locale \\
+\fichier{src/plan/} & Simulateur de plan d'épargne \\
+\fichier{src/tools/} & Outils en ligne de commande : indexation, recherche, évaluation \\
+\fichier{tests/corpus\_tests.cpp} & Tests automatiques \\
+\fichier{web/index.html} & Interface : page, style et script dans un seul fichier \\
+\fichier{data/corpus/} & \fichier{sources.json} (fiches), \fichier{glossary.json} (glossaire), \fichier{raw/} (documents, hors Git) \\
+\fichier{data/eval/} & Jeux de questions : réglage, contrôle, définitions \\
+\fichier{data/index/} & Base \fichier{vigie.db} produite par \fichier{vigie\_index} (hors Git) \\
+\fichier{models/} & Les trois modèles GGUF (hors Git) \\
+\fichier{scripts/} & Téléchargement des modèles et des documents (PowerShell) \\
+\fichier{docs/} & Rapport d'évaluation et présent guide \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\section{Compilation}
+
+\fichier{CMakeLists.txt} télécharge les dépendances à la première configuration (\texttt{FetchContent}), puis construit une bibliothèque et cinq exécutables.
+
+\begin{center}
+\small
+\begin{tabularx}{\linewidth}{@{}l X@{}}
+\toprule
+Dépendance & Rôle \\
+\midrule
+Crow 1.3.5 + Asio & Serveur HTTP (routes, fils d'exécution) \\
+SQLite 3.54 (FTS5) & Base de données et recherche plein texte \\
+nlohmann/json 3.12 & Lecture des fichiers JSON (fiches, glossaire, questions de test) \\
+PDFium & Extraction du texte des PDF \\
+llama.cpp b12000 & Exécution des trois modèles sur le processeur \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\begin{center}
+\begin{tikzpicture}[node distance=6mm and 4mm, every node/.style={font=\small},
+  lib/.style={draw=vigie, rounded corners=3pt, fill=vigie!10, minimum height=9mm, align=center},
+  exe/.style={draw=ocre, rounded corners=3pt, fill=ocre!8, minimum height=8mm, align=center, text width=19mm},
+  dep/.style={draw=gris, rounded corners=2pt, fill=gris!8, minimum height=7mm, align=center, font=\scriptsize},
+  arrow/.style={-{Stealth[length=2mm]}, thick, gris}]
+\node[lib, text width=60mm] (corpus) {\textbf{vigie\_corpus} (bibliothèque statique)\\\scriptsize corpus/*, core/grounding, followup, smalltalk, plan, llm};
+\node[dep, above left=6mm and -14mm of corpus] (sq) {vigie\_sqlite};
+\node[dep, right=2mm of sq] (pd) {PDFium};
+\node[dep, right=2mm of pd] (ll) {llama.cpp};
+\node[dep, right=2mm of ll] (js) {json};
+\node[exe, below left=8mm and -2mm of corpus] (idx) {vigie\_index};
+\node[exe, right=of idx] (srch) {vigie\_search};
+\node[exe, right=of srch] (ev) {vigie\_eval};
+\node[exe, right=of ev] (te) {vigie\_tests};
+\node[exe, left=of idx] (vg) {\textbf{vigie}\\\scriptsize + Crow};
+\foreach \d in {sq,pd,ll,js} \draw[arrow] (\d) -- (corpus);
+\foreach \e in {idx,srch,ev,te,vg} \draw[arrow] (corpus) -- (\e);
+\end{tikzpicture}
+\end{center}
+
+Le serveur \fichier{vigie} ajoute à la bibliothèque quatre fichiers qui dépendent de Crow : \fichier{main.cpp}, \fichier{config.cpp}, \fichier{api/routes.cpp} et \fichier{core/assistant.cpp}. Les macros \texttt{VIGIE\_DEFAULT\_ROOT} et \texttt{VIGIE\_DEFAULT\_WEB\_DIR} donnent au programme le chemin du dépôt, pour trouver les modèles, la base et la page sans configuration.
+
+\lstinputlisting[language=CMake, firstline=114, lastline=126, firstnumber=114, title={Options du compilateur communes à toutes les cibles --- \fichier{CMakeLists.txt}, lignes 114 à 126}]{code/CMakeLists.txt}
+
+Sous Visual Studio, \texttt{/utf-8} fait lire les sources comme de l'UTF-8 (accents des messages), et \texttt{NOMINMAX} empêche \texttt{windows.h} de remplacer \texttt{std::min} et \texttt{std::max}. llama.cpp est compilé en C++17 (lignes autour de \texttt{FetchContent\_MakeAvailable(llama\_cpp)}), car le C++20 casse ses chaînes \texttt{u8"..."} sous MSVC.
+
+% =====================================================================
+\part{Liaisons entre les fichiers}
+% =====================================================================
+
+\section{Graphe des inclusions}
+
+Une flèche \(A \rightarrow B\) signifie que \(A\) inclut l'en-tête de \(B\) et utilise donc ses fonctions. Les fichiers \texttt{.cpp} incluent toujours leur propre \texttt{.hpp} ; ces liens évidents ne sont pas dessinés.
+
+\subsection{Serveur : de \texttt{main.cpp} aux modèles}
+
+\begin{center}
+\resizebox{\linewidth}{!}{%
+\begin{tikzpicture}[every node/.style={font=\small},
+  m/.style={draw=vigie, rounded corners=3pt, fill=vigie!6, minimum height=7mm, minimum width=26mm, align=center},
+  t/.style={draw=ocre, rounded corners=3pt, fill=ocre!8, minimum height=7mm, minimum width=26mm, align=center},
+  arrow/.style={-{Stealth[length=1.8mm]}, gris!80!black}, cree/.style={-{Stealth[length=1.8mm]}, ocre, dashed}]
+\node[t] (main) at (5,0) {main.cpp};
+\node[m] (config) at (0,-1.6) {config};
+\node[m] (routes) at (3.3,-1.6) {api/routes};
+\node[m] (localgen) at (11.6,-1.6) {llm/local\_generator};
+\node[m] (planner) at (0,-3.2) {plan/planner};
+\node[m] (assistant) at (5,-3.2) {core/assistant};
+\node[m] (smalltalk) at (0,-4.8) {core/smalltalk};
+\node[m] (followup) at (2.9,-4.8) {core/followup};
+\node[m] (grounding) at (5.8,-4.8) {core/grounding};
+\node[m] (search) at (8.7,-4.8) {corpus/search};
+\node[m] (generator) at (11.6,-4.8) {llm/generator};
+\node[m] (embedder) at (5.8,-6.4) {corpus/embedder};
+\node[m] (reranker) at (8.7,-6.4) {corpus/reranker};
+\node[m] (sqlite) at (11.6,-6.4) {corpus/sqlite};
+\draw[arrow] (main) -- (config); \draw[arrow] (main) -- (routes); \draw[arrow] (main) -- (assistant);
+\draw[cree] (main) -- node[above, sloped, font=\scriptsize]{crée} (localgen);
+\draw[arrow] (routes) -- (config); \draw[arrow] (routes) -- (planner); \draw[arrow] (routes) -- (assistant);
+\draw[arrow] (assistant) -- (smalltalk); \draw[arrow] (assistant) -- (followup); \draw[arrow] (assistant) -- (grounding);
+\draw[arrow] (assistant) -- (search); \draw[arrow] (assistant) -- (generator);
+\draw[arrow] (localgen) -- node[right, font=\scriptsize]{implémente} (generator);
+\draw[arrow] (grounding) -- (search);
+\draw[arrow] (search) -- (embedder); \draw[arrow] (search) -- (reranker); \draw[arrow] (search) -- (sqlite);
+\end{tikzpicture}}
+\end{center}
+
+La flèche pointillée \og crée \fg{} rappelle que \fichier{main.cpp} construit le modèle de langage. Il construit de la même façon les deux modèles de recherche (\texttt{Embedder}, \texttt{Reranker}), qu'il passe à \texttt{SearchIndex} ; ces flèches ne sont pas dessinées pour garder le schéma lisible.
+
+\subsection{Indexation et outils}
+
+\begin{center}
+\resizebox{\linewidth}{!}{%
+\begin{tikzpicture}[every node/.style={font=\small},
+  m/.style={draw=vigie, rounded corners=3pt, fill=vigie!6, minimum height=7mm, minimum width=26mm, align=center},
+  t/.style={draw=ocre, rounded corners=3pt, fill=ocre!8, minimum height=7mm, minimum width=26mm, align=center},
+  b/.style={draw=gris, rounded corners=3pt, fill=gris!8, minimum height=7mm, minimum width=26mm, align=center},
+  arrow/.style={-{Stealth[length=1.8mm]}, gris!80!black}]
+\node[t] (index) at (7.6,0) {tools/vigie\_index};
+\node[b] (console) at (15.2,0) {tools/console};
+\node[t] (eval) at (22.8,0) {tools/vigie\_eval\\\scriptsize et vigie\_search};
+\node[m] (manifest) at (0,-1.8) {corpus/manifest};
+\node[m] (pdf) at (3.8,-1.8) {corpus/extract\_pdf};
+\node[m] (html) at (7.6,-1.8) {corpus/extract\_html};
+\node[m] (chunker) at (11.4,-1.8) {corpus/chunker};
+\node[m] (store) at (15.2,-1.8) {corpus/index\_store};
+\node[m] (embedder) at (19,-1.8) {corpus/embedder};
+\node[m] (search) at (22.8,-1.8) {corpus/search};
+\node[b] (types) at (5.7,-3.8) {corpus/types};
+\node[m] (sqlite) at (17.1,-3.8) {corpus/sqlite};
+\node[m] (reranker) at (22.8,-3.8) {corpus/reranker};
+\foreach \d in {manifest,pdf,html,chunker,store,embedder} \draw[arrow] (index) -- (\d);
+\draw[arrow] (index) -- (console); \draw[arrow] (eval) -- (console);
+\draw[arrow] (eval) -- (search); \draw[arrow] (eval) -- (embedder); \draw[arrow] (eval.east) .. controls (25.2,-1) and (25.2,-3) .. (reranker.east);
+\draw[arrow] (pdf) -- (html);
+\foreach \d in {manifest,pdf,html,chunker} \draw[arrow] (\d) -- (types);
+\draw[arrow] (store) -- (types); \draw[arrow] (store) -- (sqlite);
+\draw[arrow] (search) -- (sqlite); \draw[arrow] (search) -- (reranker); \draw[arrow] (search) -- (embedder);
+\end{tikzpicture}}
+\end{center}
+
+\fichier{extract\_pdf} utilise \texttt{clean\_text} de \fichier{extract\_html} pour nettoyer le texte de chaque page. Les tests (\fichier{tests/corpus\_tests.cpp}) incluent la plupart de ces modules pour les vérifier un par un : extraction, découpage, stockage, recherche, contrôle, questions de suite, échanges simples et simulateur.
+
+\subsection{Tableau des liaisons}
+
+\begin{center}
+\small
+\begin{longtable}{@{}p{3.6cm} p{5.2cm} p{5.6cm}@{}}
+\toprule
+Fichier & Utilise & Utilisé par \\
+\midrule
+\endhead
+\fichier{main.cpp} & config, api/routes, core/assistant, corpus/embedder, corpus/reranker, llm/local\_generator & --- (point d'entrée) \\
+\fichier{config} & --- & main, api/routes \\
+\fichier{api/routes} & config, core/assistant, plan/planner, Crow & main \\
+\fichier{core/assistant} & corpus/search, llm/generator, core/grounding, core/followup, core/smalltalk & api/routes, main \\
+\fichier{core/grounding} & corpus/search (\texttt{SearchHit}) & core/assistant, tests \\
+\fichier{core/followup} & --- & core/assistant, tests \\
+\fichier{core/smalltalk} & --- & core/assistant, tests \\
+\fichier{plan/planner} & --- & api/routes, tests \\
+\fichier{llm/generator} & --- (interface) & core/assistant, llm/local\_generator \\
+\fichier{llm/local\_generator} & llm/generator, llama.cpp & main \\
+\fichier{corpus/search} & corpus/embedder, corpus/reranker, corpus/sqlite, json & core/assistant, core/grounding, outils, tests \\
+\fichier{corpus/embedder} & llama.cpp & main, corpus/search, vigie\_index, outils \\
+\fichier{corpus/reranker} & llama.cpp & main, corpus/search, outils \\
+\fichier{corpus/sqlite} & SQLite & corpus/search, corpus/index\_store \\
+\fichier{corpus/index\_store} & corpus/sqlite, corpus/types & vigie\_index, tests \\
+\fichier{corpus/manifest} & corpus/types, json & vigie\_index \\
+\fichier{corpus/extract\_html} & corpus/types & corpus/extract\_pdf, vigie\_index, tests \\
+\fichier{corpus/extract\_pdf} & corpus/extract\_html (\texttt{clean\_text}), PDFium & vigie\_index \\
+\fichier{corpus/chunker} & corpus/types & vigie\_index, tests \\
+\fichier{corpus/types} & --- (structures) & presque tout le module corpus \\
+\fichier{tools/console} & windows.h & les trois outils \\
+\fichier{web/index.html} & routes HTTP \texttt{/ask/start}, \texttt{/ask/job}, \texttt{/plan} & servi par api/routes \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\retenir{l'API HTTP ne connaît que la classe \texttt{Assistant} et le simulateur. L'assistant ne connaît le modèle de langage qu'à travers l'interface \texttt{Generator}. On peut donc remplacer le modèle local par une API distante en écrivant une seule classe, sans toucher au reste.}
+
+\section{Parcours d'une question, de la page à la réponse}
+\label{sec:parcours}
+
+Prenons \og Quel est son plafond ? \fg, posée après \og Qu'est-ce qu'un PEA ? \fg.
+
+\begin{enumerate}
+  \item \textbf{Page} (\fichier{web/index.html}, fonction \texttt{ask}) : le script envoie \texttt{POST /ask/start} avec \texttt{\{"question": "Quel est son plafond ?", "previous\_question": "Qu'est-ce qu'un PEA ?"\}}.
+  \item \textbf{API} (\fichier{api/routes.cpp}, \texttt{read\_question} puis \texttt{Jobs::start}) : la question est validée (non vide, moins de 4\,000 octets). Un fil d'exécution est lancé, et la page reçoit aussitôt un numéro de suivi.
+  \item \textbf{Suivi} : toutes les 0,7 s, la page appelle \texttt{GET /ask/job/<numéro>}, qui répond \texttt{searching}, \texttt{writing}, \texttt{done} ou \texttt{error}.
+  \item \textbf{Échange simple ?} (\fichier{core/smalltalk.cpp}, \texttt{small\_talk}) : ce n'est ni une salutation ni une demande de plan, donc on continue.
+  \item \textbf{Question de suite ?} (\fichier{core/followup.cpp}, \texttt{may\_depend\_on\_previous}) : la question est courte et contient \og son \fg. Le modèle de langage la réécrit : \og Quel est le plafond d'un PEA ? \fg. \texttt{clean\_rewrite} vérifie que le résultat ressemble bien à une question.
+  \item \textbf{Recherche} (\fichier{corpus/search.cpp}, \texttt{SearchIndex::search}) : mots-clés, glossaire, vecteurs, fusion puis reclassement donnent jusqu'à 5 passages. Une liste vide mène à \og information non trouvée \fg.
+  \item \textbf{Passages trouvés} (\fichier{core/assistant.cpp}) : l'assistant garde les 3 meilleurs et prévient l'API par le rappel \texttt{on\_passages}. Le suivi passe à \texttt{writing}, et la page affiche les passages.
+  \item \textbf{Rédaction} (\fichier{core/grounding.cpp} puis \fichier{llm/local\_generator.cpp}) : le prompt numérote les passages ; le modèle rédige 1 à 3 phrases terminées par \texttt{[n]}.
+  \item \textbf{Contrôle} (\texttt{check\_answer}) : chaque citation doit exister et chaque nombre doit figurer dans les passages cités. Sinon, la réponse n'est pas montrée.
+  \item \textbf{Réponse} : l'API la convertit en JSON (texte, statut, question comprise, sources). La page affiche le texte, rend les \texttt{[n]} cliquables et liste les sources.
+\end{enumerate}
+
+\begin{center}
+\begin{tikzpicture}[every node/.style={font=\scriptsize}, x=1cm, y=-0.62cm]
+\foreach \name/\x in {Page/0, routes/2.6, Assistant/5.2, followup/7.6, search/9.8, Generator/12.2, grounding/14.4}
+  { \node[draw=vigie, fill=vigie!6, rounded corners=2pt, minimum width=19mm] at (\x,0) {\name};
+    \draw[gris, dashed] (\x,0.6) -- (\x,13.5); }
+\newcommand{\msg}[4]{\draw[-{Stealth[length=1.6mm]}, vigie] (#1,#3) -- node[above, font=\tiny]{#4} (#2,#3);}
+\newcommand{\back}[4]{\draw[-{Stealth[length=1.6mm]}, ocre, dashed] (#1,#3) -- node[above, font=\tiny]{#4} (#2,#3);}
+\msg{0}{2.6}{1.5}{POST /ask/start}
+\back{2.6}{0}{2.5}{\{job\}}
+\msg{2.6}{5.2}{3.2}{answer()}
+\msg{5.2}{7.6}{4.2}{may\_depend\_on\_previous}
+\msg{5.2}{12.2}{5.2}{réécriture (followup\_prompt)}
+\back{12.2}{5.2}{6.2}{question complète}
+\msg{5.2}{9.8}{7.2}{search()}
+\back{9.8}{5.2}{8.2}{3 passages}
+\back{5.2}{2.6}{8.9}{on\_passages $\Rightarrow$ writing}
+\msg{5.2}{12.2}{9.9}{generate(prompt, passages)}
+\back{12.2}{5.2}{10.9}{texte avec [n]}
+\msg{5.2}{14.4}{11.7}{check\_answer}
+\back{5.2}{2.6}{12.6}{Answer}
+\back{2.6}{0}{13.3}{GET /ask/job $\Rightarrow$ done}
+\end{tikzpicture}
+\end{center}
+
+\subsection{Parcours d'un plan financier}
+
+\begin{enumerate}
+  \item La page pose sept questions et lit les réponses avec \texttt{parseAmount}, \texttt{parseYears} et \texttt{parseGoal} (nombres écrits en français : \og 2 500 € \fg, \og 3k \fg, \og dans 5 ans \fg).
+  \item Elle envoie \texttt{POST /plan} avec un objet JSON (horizon, revenus, dépenses, épargne, objectifs, hypothèses).
+  \item \texttt{handle\_plan} (\fichier{api/routes.cpp}) convertit le JSON en \texttt{PlanInput}, appelle \texttt{plan::simulate} et renvoie le résultat en environ 1~ms.
+  \item La page dessine le graphique en SVG. Chaque curseur relance \texttt{/plan} avec la nouvelle hypothèse.
+  \item Les questions \og Combien j'aurai dans 5 ans ? \fg{} sont traitées par \texttt{answerAboutPlan}, dans la page, à partir du dernier résultat : aucun appel au serveur.
+\end{enumerate}
+
+% =====================================================================
+\part{Code commenté, module par module}
+% =====================================================================
+
+Chaque section donne le rôle du module, son interface (le fichier \texttt{.hpp}), puis les extraits importants du \texttt{.cpp}. Les numéros de ligne sont ceux du fichier réel, reproduit en entier dans l'annexe.
+
+\section{Démarrage : \texttt{main.cpp} et \texttt{config}}
+
+\fichier{config.cpp} construit les chemins par défaut à partir de \texttt{VIGIE\_DEFAULT\_ROOT}, puis les remplace par les variables d'environnement si elles existent. Le port est lu avec \texttt{std::from\_chars}, qui refuse tout ce qui n'est pas un nombre entre 1 et 65\,535.
+
+\lstinputlisting[language=C++, firstline=14, lastline=55, firstnumber=14, title={Chargement des modèles : chacun peut manquer sans bloquer le serveur --- \fichier{src/main.cpp}, lignes 14 à 55}]{code/src/main.cpp}
+
+\begin{itemize}
+  \item \textbf{Dégradation progressive.} Sans modèle de vecteurs, la recherche se fait par mots-clés seuls ; sans reclasseur, par fusion seule ; sans modèle de langage, Vigie affiche les passages sans les rédiger. Chaque absence est signalée dans la console (\og Redaction desactivee \fg).
+  \item \textbf{Durée de vie.} Les modèles sont des \texttt{std::unique\_ptr} créés dans \texttt{main} ; l'assistant et la recherche n'en reçoivent que des pointeurs bruts (\texttt{get()}), sans en devenir propriétaires.
+  \item \textbf{Sécurité réseau.} \texttt{host} vaut \texttt{127.0.0.1} : le serveur n'est accessible que depuis l'ordinateur lui-même.
+\end{itemize}
+
+\section{Fiches des documents : \texttt{corpus/types} et \texttt{corpus/manifest}}
+
+\fichier{types.hpp} définit les trois structures qui circulent dans tout le module : \texttt{DocumentRecord} (une fiche), \texttt{Paragraph} (un bloc de texte extrait, avec sa section et sa page) et \texttt{Chunk} (un passage final). \fichier{manifest.cpp} lit \fichier{sources.json} et refuse une fiche incomplète, un format autre que \texttt{html} ou \texttt{pdf}, ou un identifiant en double.
+
+\lstinputlisting[language=C++, firstline=40, lastline=61, firstnumber=40, title={Validation d'une fiche --- \fichier{src/corpus/manifest.cpp}, lignes 40 à 61}]{code/src/corpus/manifest.cpp}
+
+\section{Extraction du texte : \texttt{corpus/extract\_html} et \texttt{extract\_pdf}}
+
+\subsection{Pages web}
+
+L'extracteur HTML est écrit à la main, sans bibliothèque : il parcourt la page caractère par caractère, reconnaît les balises et transmet le texte à une petite machine à états, \texttt{SectionBuilder}, qui décide à quelle section rattacher chaque paragraphe.
+
+\begin{enumerate}
+  \item \texttt{main\_content} ne garde que la partie entre \texttt{<main>} et \texttt{</main>}, quand elle existe.
+  \item Les balises \texttt{script}, \texttt{style}, \texttt{nav}, \texttt{header}, \texttt{footer} et \texttt{form} sont ignorées avec tout leur contenu, en tenant compte de l'imbrication (\texttt{skipped\_depth}).
+  \item Chaque balise de bloc (\texttt{p}, \texttt{div}, \texttt{li}, \texttt{h1} à \texttt{h6}\dots) termine le paragraphe en cours : \texttt{flush} nettoie le texte et l'envoie à \texttt{handle}.
+  \item Un titre \texttt{h1} à \texttt{h4} devient la section courante. Certains titres marquent la fin du contenu utile (\og Lire également \fg, \og Qui peut m'aider ? \fg) : l'extraction s'arrête là.
+\end{enumerate}
+
+\lstinputlisting[language=C++, firstline=404, lastline=475, firstnumber=404, title={Boucle principale de l'extracteur --- \fichier{src/corpus/extract\_html.cpp}, lignes 404 à 475}]{code/src/corpus/extract_html.cpp}
+
+\paragraph{Textes européens.} Sur EUR-Lex, les classes CSS donnent la structure : \texttt{oj-ti-art} pour le titre d'un article, \texttt{oj-sti-art} pour son sous-titre, \texttt{oj-doc-ti} pour une annexe. Un piège : un règlement modificatif \emph{cite} des articles d'un autre texte. Seuls les vrais articles sont enfermés dans un \texttt{<div id="art\_N">} ; \texttt{open\_article\_container} retient ce fait, et un titre d'article sans conteneur reste dans l'article qui le cite.
+
+\lstinputlisting[language=C++, firstline=314, lastline=352, firstnumber=314, title={Décision de section dans \texttt{SectionBuilder::handle} --- \fichier{src/corpus/extract\_html.cpp}, lignes 314 à 352}]{code/src/corpus/extract_html.cpp}
+
+\paragraph{Fiches Service Public.} Ces pages contiennent des boutons de partage, des messages d'abonnement et une signature \og Vérifié le\dots{} (Premier ministre) \fg{} au début du texte. \texttt{is\_page\_chrome} écarte les premiers, et \texttt{handle} retire la signature pour que le passage commence par l'information utile, ce qui améliore son classement.
+
+\paragraph{Nettoyage.} \texttt{clean\_text} décode les entités HTML (\texttt{\&eacute;}, \texttt{\&\#8217;}\dots) et réduit toute suite d'espaces, y compris les espaces insécables, à un seul espace.
+
+\subsection{PDF}
+
+\fichier{extract\_pdf.cpp} charge le fichier en mémoire avec PDFium, lit le texte de chaque page en UTF-16, le convertit en UTF-8 (\texttt{utf16\_to\_utf8}, qui gère les paires de substitution), puis le nettoie avec \texttt{clean\_text}. Chaque page devient un paragraphe de section \og Page $n$ \fg. Les ressources de PDFium sont libérées automatiquement par des \texttt{std::unique\_ptr} munis de \emph{deleters} adaptés.
+
+\section{Découpage : \texttt{corpus/chunker}}
+
+\texttt{make\_chunks} regroupe les paragraphes d'une même section en passages d'environ 1\,200 octets, avec un recouvrement de 150 octets entre deux passages consécutifs, pour qu'une phrase coupée garde son contexte.
+
+\lstinputlisting[language=C++, firstline=84, lastline=107, firstnumber=84, title={Règles de découpage --- \fichier{src/corpus/chunker.cpp}, lignes 84 à 107}]{code/src/corpus/chunker.cpp}
+
+\begin{itemize}
+  \item Un changement de section ou de page ferme toujours le passage : un passage n'appartient qu'à un seul article.
+  \item Un paragraphe trop long est coupé par \texttt{split\_long\_text} après une fin de phrase, sinon après un espace, jamais au milieu d'un mot.
+  \item Un petit reste (moins de 250 octets) est ajouté au passage précédent s'il tient sous 1\,500 octets, plutôt que de former un passage minuscule.
+\end{itemize}
+
+\section{Stockage : \texttt{corpus/sqlite} et \texttt{corpus/index\_store}}
+
+\fichier{sqlite.hpp} enveloppe l'API C de SQLite dans deux classes RAII : \texttt{Database} ferme la base dans son destructeur, \texttt{Statement} finalise la requête. Les erreurs deviennent des exceptions.
+
+\lstinputlisting[language=C++, firstline=14, lastline=61, firstnumber=14, title={Schéma de la base --- \fichier{src/corpus/index\_store.cpp}, lignes 14 à 61}]{code/src/corpus/index_store.cpp}
+
+\begin{itemize}
+  \item \texttt{chunks\_fts} est une table virtuelle FTS5 qui indexe les mots du titre, de la section et du texte. L'option \texttt{remove\_diacritics 2} ignore les accents : \og épargne \fg{} et \og epargne \fg{} se valent.
+  \item Les vecteurs sont stockés tels quels, en binaire (\texttt{BLOB} de 1\,024 \texttt{float}).
+  \item \texttt{user\_version = 4} identifie le format ; \texttt{search.cpp} refuse une base d'une autre version.
+\end{itemize}
+
+\lstinputlisting[language=C++, firstline=145, lastline=172, firstnumber=145, title={Écriture sûre : nouvelle base dans un fichier temporaire, puis remplacement --- \fichier{src/corpus/index\_store.cpp}, lignes 145 à 172}]{code/src/corpus/index_store.cpp}
+
+Si une erreur survient, le fichier temporaire est supprimé et l'ancienne base reste intacte. \texttt{load\_vector\_cache} relit les vecteurs de l'ancienne base : un passage dont le texte n'a pas changé n'est pas revectorisé, ce qui rend la réindexation beaucoup plus rapide.
+
+\section{Modèles locaux : \texttt{corpus/embedder} et \texttt{corpus/reranker}}
+
+Ces deux classes cachent llama.cpp derrière une interface simple, avec l'idiome \emph{pImpl} : l'en-tête ne déclare qu'une classe \texttt{Impl}, définie dans le \texttt{.cpp}. Les fichiers qui utilisent \texttt{Embedder} n'ont donc pas besoin d'inclure \texttt{llama.h}.
+
+\lstinputlisting[language=C++, firstline=80, lastline=101, firstnumber=80, title={Calcul d'un vecteur --- \fichier{src/corpus/embedder.cpp}, lignes 80 à 101}]{code/src/corpus/embedder.cpp}
+
+\begin{itemize}
+  \item Un contexte llama.cpp ne traite qu'une demande à la fois : le \texttt{std::mutex} protège les appels venus de plusieurs fils du serveur.
+  \item \texttt{bge-m3} résume le texte par son premier jeton (\emph{pooling} CLS). Le vecteur est ensuite normalisé à la longueur 1, si bien que le produit scalaire de deux vecteurs est directement leur similarité cosinus.
+  \item Un texte de plus de 512 jetons est tronqué en gardant le jeton de fin.
+\end{itemize}
+
+Le reclasseur assemble la question et le passage dans le format attendu par son modèle (début, question, fin, séparateur, passage, fin), puis lit un seul nombre : plus il est élevé, plus le passage répond à la question. La question est limitée à 64 jetons et le passage à 256.
+
+\lstinputlisting[language=C++, firstline=83, lastline=115, firstnumber=83, title={Assemblage question/passage pour le reclasseur --- \fichier{src/corpus/reranker.cpp}, lignes 83 à 115}]{code/src/corpus/reranker.cpp}
+
+\section{Recherche : \texttt{corpus/search}}
+\label{sec:search}
+
+C'est le cœur du RAG. \texttt{SearchIndex::search} combine deux recherches, fusionne leurs classements, puis fait relire les meilleurs candidats par le reclasseur.
+
+\subsection{Étape 1 --- Mots utiles}
+
+\texttt{extract\_terms} met la question en minuscules sans accents (\texttt{fold\_text}), retire les mots vides (\og le \fg, \og quel \fg, \og est \fg\dots) et un pluriel simple. \og Quel est le plafond du livret A ? \fg{} donne \texttt{plafond}, \texttt{livret}.
+
+\subsection{Étape 2 --- Couverture pondérée}
+
+Pour chaque passage, \texttt{compute\_coverage} mesure quelle part de la question il contient, en donnant plus de poids aux mots rares. Avec \(N\) passages au total et \(n_t\) passages contenant le mot \(t\) :
+\[
+w_t = \ln\!\left(1 + \frac{N}{n_t + 1}\right), \qquad
+\text{couverture}(p) = \frac{\sum_{t \in p} w_t}{\sum_{t} w_t}.
+\]
+Un mot absent de la base, comme \og diesel \fg, pèse lourd et fait baisser la couverture de tous les passages : c'est ce qui aide à refuser une question hors sujet.
+
+\subsection{Étape 3 --- Candidats par mots-clés}
+
+FTS5 classe les passages avec BM25, en donnant plus de poids à la section (4) et au titre (2) qu'au texte (1). Plusieurs requêtes complètent la liste : une requête vers les sections \og Définitions \fg{} si la question demande une définition, une requête par synonyme du glossaire, et une requête limitée au document que la question nomme (\og RGPD \fg).
+
+\lstinputlisting[language=C++, firstline=328, lastline=352, firstnumber=328, title={Glossaire : chaque synonyme ajoute une requête et enrichit la question --- \fichier{src/corpus/search.cpp}, lignes 328 à 352}]{code/src/corpus/search.cpp}
+
+\subsection{Étape 4 --- Candidats par le sens}
+
+\texttt{nearest\_chunks} compare le vecteur de la question à tous les vecteurs de la base, par produit scalaire. Sur 5\,000 passages, ce calcul exact reste rapide et ne manque aucun résultat, contrairement à un index approximatif.
+
+\subsection{Étape 5 --- Fusion des deux classements}
+
+Chaque méthode produit un classement. La fusion par rang réciproque (\emph{Reciprocal Rank Fusion}) donne à chaque passage
+\[
+\text{score}(p) = \sum_{\text{méthodes } m} \frac{1}{k + \text{rang}_m(p)}, \qquad k = 30.
+\]
+Un passage bien placé par les deux méthodes l'emporte. Des facteurs corrigent ensuite ce score : \(\times 0{,}75\) pour un préambule (les considérants d'un règlement), \(\times 1{,}25\) pour une section de définitions quand la question en demande une, \(\times 2\) pour un passage du texte nommé dans la question.
+
+\lstinputlisting[language=C++, firstline=406, lastline=451, firstnumber=406, title={Fusion par rang réciproque --- \fichier{src/corpus/search.cpp}, lignes 406 à 451}]{code/src/corpus/search.cpp}
+
+\subsection{Étape 6 --- Reclassement et refus}
+
+Les 20 meilleurs candidats sont relus par le reclasseur, qui lit le titre, la section et les 600 premiers caractères du passage. Si le meilleur score reste sous \(-3\), la recherche renvoie une liste vide : Vigie répondra \og information non trouvée \fg. Enfin, au plus 3 passages par document sont gardés, sur 5 au total, pour varier les sources.
+
+\lstinputlisting[language=C++, firstline=473, lastline=506, firstnumber=473, title={Reclassement et sélection finale --- \fichier{src/corpus/search.cpp}, lignes 473 à 506}]{code/src/corpus/search.cpp}
+
+\begin{center}
+\small
+\begin{tabularx}{\linewidth}{@{}l r X@{}}
+\toprule
+Réglage (\texttt{SearchOptions}) & Valeur & Effet \\
+\midrule
+\texttt{limit} & 5 & Passages renvoyés \\
+\texttt{candidates} & 60 & Candidats par requête et par méthode \\
+\texttt{per\_document} & 3 & Passages au plus par document \\
+\texttt{rank\_fusion\_constant} & 30 & \(k\) de la fusion \\
+\texttt{rerank\_candidates} & 20 & Candidats relus par le reclasseur \\
+\texttt{rerank\_text\_limit} & 600 & Caractères lus par passage \\
+\texttt{minimum\_rerank\_score} & \(-3\) & Seuil de refus \\
+\texttt{use\_glossary} & vrai & Glossaire actif \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+Les seuils de couverture et de similarité (\texttt{minimum\_coverage}, \texttt{minimum\_similarity}\dots) ne servent que si le reclasseur est absent : la recherche décide alors seule si elle a trouvé quelque chose.
+
+\section{Modèle de langage : \texttt{llm/generator} et \texttt{llm/local\_generator}}
+
+\fichier{generator.hpp} déclare l'interface : \texttt{generate(consigne, message)} et \texttt{name()}. \fichier{local\_generator.cpp} l'implémente avec llama.cpp.
+
+\lstinputlisting[language=C++, firstline=33, lastline=36, firstnumber=33, title={Format de conversation de Qwen 3.5 --- \fichier{src/llm/local\_generator.cpp}, lignes 33 à 36}]{code/src/llm/local_generator.cpp}
+
+Les balises \texttt{<|im\_start|>} et \texttt{<|im\_end|>} délimitent les rôles. Le bloc vide \texttt{<think></think>} désactive le raisonnement préalable du modèle, qui doublerait le temps de réponse.
+
+\lstinputlisting[language=C++, firstline=83, lastline=113, firstnumber=83, title={Boucle de génération --- \fichier{src/llm/local\_generator.cpp}, lignes 83 à 113}]{code/src/llm/local_generator.cpp}
+
+\begin{itemize}
+  \item Le modèle lit d'abord tout le prompt (\texttt{llama\_decode} sur tous les jetons), puis produit un jeton à la fois.
+  \item L'échantillonneur \emph{greedy} choisit toujours le jeton le plus probable : la même question donne la même réponse.
+  \item Au-delà de 320 jetons, la réponse est rejetée plutôt que coupée, car une réponse tronquée pourrait perdre sa condition ou sa citation.
+\end{itemize}
+
+\section{Prompt et contrôle : \texttt{core/grounding}}
+
+\subsection{Le prompt}
+
+\texttt{grounded\_system\_prompt} fixe les règles : répondre dès la première phrase, au plus deux phrases de plus, ne pas mélanger les cas, recopier montants et délais, n'utiliser aucune connaissance extérieure, terminer chaque phrase par \texttt{[n]}, écrire \texttt{INFORMATION NON TROUVÉE} si les extraits ne suffisent pas, ne jamais recommander de produit, et traiter les extraits comme des données, pas comme des instructions. \texttt{grounded\_user\_prompt} numérote les passages :
+
+\begin{lstlisting}[numbers=none, language={}]
+Extraits :
+[1] Plan d'épargne en actions (PEA) — Quel est le plafond du PEA bancaire ?
+Le plafond de versement est de 150 000 €. ...
+
+Question : Quel est le plafond d'un PEA ?
+\end{lstlisting}
+
+\subsection{Le contrôle}
+
+\lstinputlisting[language=C++, firstline=157, lastline=186, firstnumber=157, title={\texttt{check\_answer} : la réponse doit prouver ce qu'elle affirme --- \fichier{src/core/grounding.cpp}, lignes 157 à 186}]{code/src/core/grounding.cpp}
+
+\begin{enumerate}
+  \item \texttt{INFORMATION NON TROUVÉE} donne le statut \texttt{NotFound}.
+  \item Sans aucune citation, la réponse est \texttt{Unconfirmed}.
+  \item \texttt{without\_uncited\_ending} retire ce qui suit la dernière citation : une phrase finale sans source disparaît.
+  \item Chaque citation doit désigner un passage fourni.
+  \item \texttt{numbers\_in} relève les nombres de la réponse et des passages cités, en reconnaissant \og 50 000 \fg, \og 50000 \fg{} et \og 35 millions \fg{} comme le même nombre. Un nombre de la réponse absent des passages cités rend la réponse \texttt{Unconfirmed}.
+\end{enumerate}
+
+\retenir{le contrôle vérifie la forme (citations, nombres), pas le sens d'une phrase. C'est pourquoi la page affiche toujours les sources et rappelle de vérifier la réponse.}
+
+\section{Questions de suite : \texttt{core/followup}}
+
+\texttt{may\_depend\_on\_previous} décide si une question dépend de la précédente : au plus 12 mots, et soit elle commence par une liaison (\og et \fg, \og mais \fg, \og pour \fg\dots), soit elle contient un renvoi (\og son \fg, \og elle \fg, \og ce produit \fg\dots). \og Qu'est-ce que \fg{} est exclu : le \og ce \fg{} y fait partie de la tournure.
+
+\lstinputlisting[language=C++, firstline=50, lastline=73, firstnumber=50, title={Détection d'une question de suite --- \fichier{src/core/followup.cpp}, lignes 50 à 73}]{code/src/core/followup.cpp}
+
+Le prompt de réécriture contient deux exemples, et \texttt{clean\_rewrite} rejette une sortie vide, trop longue, sur plusieurs lignes, ou qui commente la tâche (\og recopie \fg, \og se comprend \fg) au lieu d'être une question. En cas de rejet, \fichier{assistant.cpp} envoie à la recherche les deux questions mises bout à bout.
+
+\section{Échanges simples : \texttt{core/smalltalk}}
+
+\texttt{small\_talk} répond sans recherche aux messages de six mots au plus : salutation, remerciement, au revoir, \og qui es-tu ? \fg, \og que sais-tu faire ? \fg. Il reconnaît aussi, quelle que soit la longueur, une demande de plan (\og plan financier \fg, \og planifier \fg, \og faire un budget \fg), et renvoie alors le type \texttt{PlanOffer}. \og Plan d'épargne \fg{} seul est volontairement ignoré, car il désigne souvent un produit (PEL, PEA, PER). \texttt{without\_greeting} retire \og Bonjour Vigie, \fg{} au début d'une vraie question.
+
+\section{Orchestration : \texttt{core/assistant}}
+
+\texttt{Assistant} est le seul point d'entrée du moteur. Il reçoit une \texttt{SearchIndex} et un pointeur vers un \texttt{Generator} (éventuellement nul).
+
+\lstinputlisting[language=C++, firstline=57, lastline=66, firstnumber=57, title={Enchaînement des étapes --- \fichier{src/core/assistant.cpp}, lignes 57 à 66}]{code/src/core/assistant.cpp}
+
+\lstinputlisting[language=C++, firstline=83, lastline=114, firstnumber=83, title={Réponse vérifiée ou passages bruts --- \fichier{src/core/assistant.cpp}, lignes 83 à 114}]{code/src/core/assistant.cpp}
+
+\begin{center}
+\small
+\begin{tabularx}{\linewidth}{@{}l X@{}}
+\toprule
+Statut renvoyé & Signification \\
+\midrule
+\texttt{found} & Réponse rédigée et vérifiée, avec les seules sources citées \\
+\texttt{not\_found} & Rien d'assez proche, ou le modèle a écrit \texttt{INFORMATION NON TROUVÉE} \\
+\texttt{unconfirmed} & Réponse rejetée par le contrôle : les passages sont affichés tels quels \\
+\texttt{chat} & Échange simple, sans recherche \\
+\texttt{plan} & Demande de plan : la page propose le simulateur \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\section{Simulateur : \texttt{plan/planner}}
+
+\texttt{simulate} vérifie d'abord les bornes (\texttt{validate} : horizon de 1 à 50 ans, montants positifs, 1 à 5 hypothèses, 10 objectifs au plus), puis projette l'épargne mois par mois pour chaque hypothèse de rendement.
+
+\paragraph{Taux mensuel.} Un rendement annuel \(r\) correspond au taux mensuel \(r_m = (1 + r)^{1/12} - 1\), de sorte que douze mois composés redonnent exactement \(r\).
+
+\paragraph{Un mois.} \(C \leftarrow C \times (1 + r_m) + E\), où \(C\) est le capital et \(E\) l'épargne mensuelle. En fin d'année, chaque objectif échu est payé s'il reste assez d'argent ; son coût est augmenté de l'inflation : \(\text{coût} = \text{montant} \times (1 + i)^{\text{année}}\).
+
+\lstinputlisting[language=C++, firstline=35, lastline=64, firstnumber=35, title={Projection d'un scénario --- \fichier{src/plan/planner.cpp}, lignes 35 à 64}]{code/src/plan/planner.cpp}
+
+\paragraph{Euros d'aujourd'hui.} Le capital central est divisé par \((1+i)^{\text{année}}\) pour montrer son pouvoir d'achat actuel.
+
+\paragraph{Épargne nécessaire.} Pour trouver l'épargne mensuelle minimale qui finance tous les objectifs, le code double une borne haute jusqu'à ce qu'elle suffise, puis procède par dichotomie pendant 60 étapes, ce qui donne un résultat précis au centime.
+
+\lstinputlisting[language=C++, firstline=175, lastline=188, firstnumber=175, title={Recherche par dichotomie --- \fichier{src/plan/planner.cpp}, lignes 175 à 188}]{code/src/plan/planner.cpp}
+
+Le simulateur ne recommande aucun produit et n'utilise pas le modèle de langage : ses résultats sont exacts et reproductibles.
+
+\section{API HTTP : \texttt{api/routes}}
+
+\begin{center}
+\small
+\begin{tabularx}{\linewidth}{@{}l l X@{}}
+\toprule
+Route & Méthode & Rôle \\
+\midrule
+\texttt{/} & GET & Sert \fichier{web/index.html} \\
+\texttt{/health} & GET & Vérifie que le serveur répond (version) \\
+\texttt{/ask} & POST & Répond en une fois (attente de la réponse complète) \\
+\texttt{/ask/start} & POST & Lance une question en arrière-plan, renvoie un numéro \\
+\texttt{/ask/job/<id>} & GET & État de la question : \texttt{searching}, \texttt{writing}, \texttt{done}, \texttt{error} \\
+\texttt{/plan} & POST & Simule un plan d'épargne \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\lstinputlisting[language=C++, firstline=165, lastline=238, firstnumber=165, title={Suivi des questions en arrière-plan --- \fichier{src/api/routes.cpp}, lignes 165 à 238}]{code/src/api/routes.cpp}
+
+\begin{itemize}
+  \item Chaque question tourne dans un fil détaché. Un \texttt{std::shared\_ptr<Job>} garde le suivi en vie tant que le fil ou la table l'utilisent.
+  \item Le même \texttt{std::mutex} protège la table et l'état de chaque suivi. Seuls les 32 derniers suivis sont gardés.
+  \item Le texte n'est jamais transmis avant le contrôle : l'état \texttt{writing} ne contient que les passages.
+\end{itemize}
+
+\section{Interface : \texttt{web/index.html}}
+
+La page est autonome : HTML, CSS et JavaScript dans un seul fichier, sans bibliothèque externe, pour fonctionner hors ligne.
+
+\begin{center}
+\small
+\begin{tabularx}{\linewidth}{@{}l X@{}}
+\toprule
+Fonction JavaScript & Rôle \\
+\midrule
+\texttt{ask} & Envoie la question, suit l'avancement, affiche les étapes \\
+\texttt{showAnswer}, \texttt{answerText} & Affiche la réponse ; transforme \texttt{[n]} en boutons qui ouvrent la source \\
+\texttt{sourcesBlock} & Liste repliable des sources, avec extrait et lien \\
+\texttt{startPlan}, \texttt{askPlanStep}, \texttt{answerPlan} & Dialogue en sept questions du plan financier \\
+\texttt{parseAmount}, \texttt{parseYears}, \texttt{parseGoal} & Lecture des nombres et objectifs écrits en français \\
+\texttt{computePlan}, \texttt{renderPlan} & Appel de \texttt{/plan} et affichage du résultat \\
+\texttt{chart}, \texttt{controls} & Graphique SVG avec info-bulle ; curseurs d'hypothèses \\
+\texttt{answerAboutPlan} & Réponses calculées sur le dernier plan \\
+\texttt{setMode}, \texttt{submit} & Bascule entre questions et plan ; aiguillage d'un message \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\lstinputlisting[language=JavaScript, firstline=636, lastline=647, firstnumber=636, title={Lecture d'un montant écrit en français --- \fichier{web/index.html}, lignes 636 à 647}]{code/web/index.html}
+
+Les couleurs sont des variables CSS (\texttt{--accent}, \texttt{--panel}\dots) redéfinies pour le mode sombre. Le texte des réponses est toujours inséré avec \texttt{textContent}, jamais \texttt{innerHTML}, pour qu'un passage contenant du HTML ne puisse pas s'exécuter dans la page ; \texttt{escapeHtml} protège les rares endroits qui construisent du SVG.
+
+\section{Outils en ligne de commande}
+
+\subsection{\texttt{vigie\_index}}
+
+\lstinputlisting[language=C++, firstline=68, lastline=108, firstnumber=68, title={Indexation de chaque document --- \fichier{src/tools/vigie\_index.cpp}, lignes 68 à 108}]{code/src/tools/vigie_index.cpp}
+
+Le texte vectorisé est \og section : texte \fg, pour que le titre de l'article participe au sens. Un document en échec arrête tout avant l'écriture : la base précédente reste utilisable. \texttt{without\_duplicates} retire les passages identiques, fréquents sur les fiches à onglets.
+
+\subsection{\texttt{vigie\_eval}}
+
+L'outil pose chaque question d'un jeu de test à la recherche et cherche le rang du premier passage \emph{correct} : bon document, section acceptée, et texte de preuve présent (\texttt{correct\_rank}). Il en tire le taux au rang 1, dans les 3 et 5 premiers, le rang réciproque moyen, les refus et le temps de recherche au 95\textsuperscript{e} centile. Les options \texttt{--no-rerank}, \texttt{--no-glossary}, \texttt{--candidates} et \texttt{--rerank-chars} comparent les réglages.
+
+\subsection{\texttt{vigie\_search} et \texttt{tools/console.hpp}}
+
+\fichier{vigie\_search} affiche, pour une question, les passages trouvés avec leurs trois scores (couverture, similarité, reclassement). \fichier{console.hpp} passe la console Windows en UTF-8 pour afficher les accents.
+
+\section{Tests : \texttt{tests/corpus\_tests.cpp}}
+
+Les tests n'utilisent aucune bibliothèque : \texttt{check(condition, nom)} compte les échecs, et le programme renvoie un code d'erreur s'il y en a.
+
+\begin{center}
+\small
+\begin{tabularx}{\linewidth}{@{}l X@{}}
+\toprule
+Test & Ce qu'il vérifie \\
+\midrule
+\texttt{test\_clean\_text} & Entités HTML et espaces \\
+\texttt{test\_eu\_law\_sections} & Articles, sous-titres et annexes EUR-Lex \\
+\texttt{test\_quoted\_articles\_\dots} & Un article cité reste dans l'article qui le modifie \\
+\texttt{test\_web\_page}, \texttt{test\_html\_headings} & Titres, fin de page, signature retirée \\
+\texttt{test\_chunks} & Taille, recouvrement et coupure des passages \\
+\texttt{test\_failed\_index\_\dots} & Une indexation ratée laisse l'ancienne base \\
+\texttt{test\_extract\_terms}, \texttt{test\_search} & Mots utiles et recherche par mots-clés \\
+\texttt{test\_embedder} & Vecteurs (ignoré si le modèle est absent) \\
+\texttt{test\_answer\_check} & Citations, nombres, millions, fin non citée \\
+\texttt{test\_followup}, \texttt{test\_small\_talk} & Questions de suite, échanges simples \\
+\texttt{test\_planner} & Calculs exacts du simulateur sur un cas connu \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\section{Données et scripts}
+
+\begin{itemize}
+  \item \fichier{data/corpus/sources.json} : une fiche par document (identifiant, titre, émetteur, thème, format, URL, dates, statut, règle de réutilisation), et les règles de réutilisation par source.
+  \item \fichier{data/corpus/glossary.json} : vocabulaire courant vers vocabulaire des textes (\og cryptomonnaie \fg{} \(\rightarrow\) \og crypto-actif \fg). Lu par le constructeur de \texttt{SearchIndex}.
+  \item \fichier{data/eval/*.json} : questions avec réponse attendue (document, sections, texte de preuve) et questions hors sujet.
+  \item \fichier{scripts/download\_model.ps1} : télécharge les trois modèles à une version figée et vérifie leur empreinte SHA-256.
+  \item \fichier{scripts/download\_corpus.ps1} : télécharge chaque document de \fichier{sources.json} et vérifie qu'il s'agit bien d'un PDF ou d'une page attendue ; un fichier enregistré à la main est conservé.
+\end{itemize}
+
+\section{Pour aller plus loin dans le code}
+
+\begin{itemize}
+  \item \textbf{Changer de modèle de langage} : écrire une classe dérivée de \texttt{llm::Generator} et la créer dans \fichier{main.cpp} à la place de \texttt{LocalGenerator}.
+  \item \textbf{Ajouter un document} : ajouter sa fiche dans \fichier{sources.json}, le télécharger dans \fichier{data/corpus/raw/}, puis relancer \fichier{vigie\_index}.
+  \item \textbf{Régler la recherche} : modifier \texttt{SearchOptions} dans \fichier{search.hpp}, puis mesurer avec \fichier{vigie\_eval} sur le jeu de réglage, jamais sur le jeu de contrôle.
+  \item \textbf{Ajouter une route} : la déclarer dans \texttt{register\_routes} (\fichier{api/routes.cpp}).
+\end{itemize}
+
+% =====================================================================
+\appendix
+\part*{Annexe --- Code source complet}
+\addcontentsline{toc}{part}{Annexe --- Code source complet}
+% =====================================================================
+\sloppy
+\section*{\texttt{CMakeLists.txt}}
+\addcontentsline{toc}{section}{\texttt{CMakeLists.txt}}
+\lstinputlisting[language=CMake, basicstyle=\ttfamily\scriptsize]{code/CMakeLists.txt}
+
+\section*{\texttt{CMakePresets.json}}
+\addcontentsline{toc}{section}{\texttt{CMakePresets.json}}
+\lstinputlisting[language={}, basicstyle=\ttfamily\scriptsize]{code/CMakePresets.json}
+
+\section*{\texttt{src/main.cpp}}
+\addcontentsline{toc}{section}{\texttt{src/main.cpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/main.cpp}
+
+\section*{\texttt{src/config.hpp}}
+\addcontentsline{toc}{section}{\texttt{src/config.hpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/config.hpp}
+
+\section*{\texttt{src/config.cpp}}
+\addcontentsline{toc}{section}{\texttt{src/config.cpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/config.cpp}
+
+\section*{\texttt{src/api/routes.hpp}}
+\addcontentsline{toc}{section}{\texttt{src/api/routes.hpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/api/routes.hpp}
+
+\section*{\texttt{src/api/routes.cpp}}
+\addcontentsline{toc}{section}{\texttt{src/api/routes.cpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/api/routes.cpp}
+
+\section*{\texttt{src/core/assistant.hpp}}
+\addcontentsline{toc}{section}{\texttt{src/core/assistant.hpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/core/assistant.hpp}
+
+\section*{\texttt{src/core/assistant.cpp}}
+\addcontentsline{toc}{section}{\texttt{src/core/assistant.cpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/core/assistant.cpp}
+
+\section*{\texttt{src/core/grounding.hpp}}
+\addcontentsline{toc}{section}{\texttt{src/core/grounding.hpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/core/grounding.hpp}
+
+\section*{\texttt{src/core/grounding.cpp}}
+\addcontentsline{toc}{section}{\texttt{src/core/grounding.cpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/core/grounding.cpp}
+
+\section*{\texttt{src/core/followup.hpp}}
+\addcontentsline{toc}{section}{\texttt{src/core/followup.hpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/core/followup.hpp}
+
+\section*{\texttt{src/core/followup.cpp}}
+\addcontentsline{toc}{section}{\texttt{src/core/followup.cpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/core/followup.cpp}
+
+\section*{\texttt{src/core/smalltalk.hpp}}
+\addcontentsline{toc}{section}{\texttt{src/core/smalltalk.hpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/core/smalltalk.hpp}
+
+\section*{\texttt{src/core/smalltalk.cpp}}
+\addcontentsline{toc}{section}{\texttt{src/core/smalltalk.cpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/core/smalltalk.cpp}
+
+\section*{\texttt{src/plan/planner.hpp}}
+\addcontentsline{toc}{section}{\texttt{src/plan/planner.hpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/plan/planner.hpp}
+
+\section*{\texttt{src/plan/planner.cpp}}
+\addcontentsline{toc}{section}{\texttt{src/plan/planner.cpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/plan/planner.cpp}
+
+\section*{\texttt{src/llm/generator.hpp}}
+\addcontentsline{toc}{section}{\texttt{src/llm/generator.hpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/llm/generator.hpp}
+
+\section*{\texttt{src/llm/local\_generator.hpp}}
+\addcontentsline{toc}{section}{\texttt{src/llm/local\_generator.hpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/llm/local_generator.hpp}
+
+\section*{\texttt{src/llm/local\_generator.cpp}}
+\addcontentsline{toc}{section}{\texttt{src/llm/local\_generator.cpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/llm/local_generator.cpp}
+
+\section*{\texttt{src/corpus/types.hpp}}
+\addcontentsline{toc}{section}{\texttt{src/corpus/types.hpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/corpus/types.hpp}
+
+\section*{\texttt{src/corpus/manifest.hpp}}
+\addcontentsline{toc}{section}{\texttt{src/corpus/manifest.hpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/corpus/manifest.hpp}
+
+\section*{\texttt{src/corpus/manifest.cpp}}
+\addcontentsline{toc}{section}{\texttt{src/corpus/manifest.cpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/corpus/manifest.cpp}
+
+\section*{\texttt{src/corpus/extract\_html.hpp}}
+\addcontentsline{toc}{section}{\texttt{src/corpus/extract\_html.hpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/corpus/extract_html.hpp}
+
+\section*{\texttt{src/corpus/extract\_html.cpp}}
+\addcontentsline{toc}{section}{\texttt{src/corpus/extract\_html.cpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/corpus/extract_html.cpp}
+
+\section*{\texttt{src/corpus/extract\_pdf.hpp}}
+\addcontentsline{toc}{section}{\texttt{src/corpus/extract\_pdf.hpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/corpus/extract_pdf.hpp}
+
+\section*{\texttt{src/corpus/extract\_pdf.cpp}}
+\addcontentsline{toc}{section}{\texttt{src/corpus/extract\_pdf.cpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/corpus/extract_pdf.cpp}
+
+\section*{\texttt{src/corpus/chunker.hpp}}
+\addcontentsline{toc}{section}{\texttt{src/corpus/chunker.hpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/corpus/chunker.hpp}
+
+\section*{\texttt{src/corpus/chunker.cpp}}
+\addcontentsline{toc}{section}{\texttt{src/corpus/chunker.cpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/corpus/chunker.cpp}
+
+\section*{\texttt{src/corpus/sqlite.hpp}}
+\addcontentsline{toc}{section}{\texttt{src/corpus/sqlite.hpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/corpus/sqlite.hpp}
+
+\section*{\texttt{src/corpus/index\_store.hpp}}
+\addcontentsline{toc}{section}{\texttt{src/corpus/index\_store.hpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/corpus/index_store.hpp}
+
+\section*{\texttt{src/corpus/index\_store.cpp}}
+\addcontentsline{toc}{section}{\texttt{src/corpus/index\_store.cpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/corpus/index_store.cpp}
+
+\section*{\texttt{src/corpus/embedder.hpp}}
+\addcontentsline{toc}{section}{\texttt{src/corpus/embedder.hpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/corpus/embedder.hpp}
+
+\section*{\texttt{src/corpus/embedder.cpp}}
+\addcontentsline{toc}{section}{\texttt{src/corpus/embedder.cpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/corpus/embedder.cpp}
+
+\section*{\texttt{src/corpus/reranker.hpp}}
+\addcontentsline{toc}{section}{\texttt{src/corpus/reranker.hpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/corpus/reranker.hpp}
+
+\section*{\texttt{src/corpus/reranker.cpp}}
+\addcontentsline{toc}{section}{\texttt{src/corpus/reranker.cpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/corpus/reranker.cpp}
+
+\section*{\texttt{src/corpus/search.hpp}}
+\addcontentsline{toc}{section}{\texttt{src/corpus/search.hpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/corpus/search.hpp}
+
+\section*{\texttt{src/corpus/search.cpp}}
+\addcontentsline{toc}{section}{\texttt{src/corpus/search.cpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/corpus/search.cpp}
+
+\section*{\texttt{src/tools/console.hpp}}
+\addcontentsline{toc}{section}{\texttt{src/tools/console.hpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/tools/console.hpp}
+
+\section*{\texttt{src/tools/vigie\_index.cpp}}
+\addcontentsline{toc}{section}{\texttt{src/tools/vigie\_index.cpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/tools/vigie_index.cpp}
+
+\section*{\texttt{src/tools/vigie\_search.cpp}}
+\addcontentsline{toc}{section}{\texttt{src/tools/vigie\_search.cpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/tools/vigie_search.cpp}
+
+\section*{\texttt{src/tools/vigie\_eval.cpp}}
+\addcontentsline{toc}{section}{\texttt{src/tools/vigie\_eval.cpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/src/tools/vigie_eval.cpp}
+
+\section*{\texttt{tests/corpus\_tests.cpp}}
+\addcontentsline{toc}{section}{\texttt{tests/corpus\_tests.cpp}}
+\lstinputlisting[language=C++, basicstyle=\ttfamily\scriptsize]{code/tests/corpus_tests.cpp}
+
+\section*{\texttt{web/index.html}}
+\addcontentsline{toc}{section}{\texttt{web/index.html}}
+\lstinputlisting[language=JavaScript, basicstyle=\ttfamily\scriptsize]{code/web/index.html}
+
+\section*{\texttt{scripts/download\_model.ps1}}
+\addcontentsline{toc}{section}{\texttt{scripts/download\_model.ps1}}
+\lstinputlisting[language={}, basicstyle=\ttfamily\scriptsize]{code/scripts/download_model.ps1}
+
+\section*{\texttt{scripts/download\_corpus.ps1}}
+\addcontentsline{toc}{section}{\texttt{scripts/download\_corpus.ps1}}
+\lstinputlisting[language={}, basicstyle=\ttfamily\scriptsize]{code/scripts/download_corpus.ps1}
+
+
+\end{document}

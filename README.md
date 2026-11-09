@@ -161,6 +161,10 @@ Vigie comprend une question de suite comme « Et pour le PEL ? ». La page envoi
 - Après le plan, la page répond à « Combien j'aurai dans 5 ans ? », « Quand atteindrai-je 50 000 € ? » ou « Mes objectifs sont-ils atteints ? » à partir du calcul.
 - Le simulateur ne recommande aucun produit et ne prévoit aucun rendement.
 
+### Guide du code
+
+`docs/guide/guide_code.pdf` explique tout le code : principe, liaisons entre les fichiers, explication commentée de chaque module et code complet en annexe. Après une modification du code, `python generer_guide.py` dans `docs/guide/` met à jour les extraits et leurs numéros de ligne, puis `pdflatex guide_code.tex`, trois fois, régénère le PDF.
+
 ### Rapport
 
 `docs/rapport/rapport.tex` décrit l'évolution de la base, la vitesse, la robustesse et la performance de Vigie, ainsi que le plan de rendu. Pour le compiler : `pdflatex rapport.tex`, deux fois, dans `docs/rapport/`.

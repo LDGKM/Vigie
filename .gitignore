@@ -22,3 +22,8 @@ docs/rapport/*.aux
 docs/rapport/*.log
 docs/rapport/*.out
 docs/rapport/*.toc
+docs/guide/code/
+docs/guide/*.aux
+docs/guide/*.log
+docs/guide/*.out
+docs/guide/*.toc
