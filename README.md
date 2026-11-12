@@ -60,8 +60,33 @@ Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8080/ask `
 | `VIGIE_MODEL_PATH` | `models/bge-m3-Q4_K_M.gguf` | Modèle de vectorisation |
 | `VIGIE_RERANKER_PATH` | `models/bge-reranker-v2-m3-Q4_K_M.gguf` | Modèle de reclassement |
 | `VIGIE_LLM_PATH` | `models/Qwen3.5-4B-Q4_K_M.gguf` | Modèle de langage |
+| `VIGIE_DATA_SERVER` | `vigie-donnees` trouvé dans un dossier voisin | Commande du serveur MCP de données, ou `off` |
 
 Le serveur n'écoute que sur `127.0.0.1` : il n'est accessible que depuis ce PC.
+
+## Données en direct (facultatif)
+
+Le corpus est figé. Pour les valeurs qui changent, Vigie interroge le serveur MCP
+[vigie-donnees](https://github.com/LDGKM/vigie_donnees), lancé comme sous-processus (JSON-RPC sur
+l'entrée et la sortie standard) :
+
+| Question | Outil |
+|---|---|
+| « La société Coinhouse est-elle autorisée ? », « placement-or.com est-il une arnaque ? » | `verifier_entite` (liste noire AMF, REGAFI, registres MiCA) |
+| « Quel est le plafond du LEP ? », « Taux du livret A ? » | `taux_livrets` (fiches Service-Public) |
+| « Quel est le taux directeur de la BCE ? » | `taux_directeurs` (API de la BCE) |
+| « Quelle est l'inflation en France ? » | `inflation` (Insee) |
+| « Mensualité pour 200 000 € sur 20 ans à 3,5 % ? » | `mensualite_credit` (calcul local) |
+
+- Le choix de l'outil et ses arguments viennent du code (`src/core/tool_router.cpp`), jamais du
+  modèle de langage. Les questions d'explication (« qu'est-ce que », « comment ») restent au corpus.
+- Le résultat de l'outil devient un passage source : il est cité [1] et affiché avec sa date de
+  consultation. Seul le passage des livrets est résumé par le modèle, avec le même contrôle des
+  nombres ; les autres sont cités tels quels.
+- Sans le serveur, ou s'il ne répond pas, Vigie répond avec ses documents.
+
+Installation : cloner `vigie_donnees` à côté de ce dossier, puis `uv sync` dans ce dossier.
+Vigie trouve alors `.venv\Scripts\vigie-donnees.exe` tout seul ; sinon, renseigner `VIGIE_DATA_SERVER`.
 
 ## Corpus
 
@@ -89,6 +114,8 @@ src/config.*            Lecture de la configuration
 src/api/routes.*        Routes HTTP et validation des requêtes
 src/core/assistant.*    Enchaîne la recherche, la rédaction et le contrôle
 src/core/grounding.*    Prépare le prompt et contrôle la réponse
+src/core/tool_router.*  Choisit l'outil de données en direct d'après la question
+src/mcp/client.*        Client MCP sur l'entrée et la sortie standard d'un sous-processus
 src/llm/                Interface du modèle de langage et modèle local
 src/corpus/             Lecture, découpage, vectorisation, stockage et recherche
 src/tools/              Outils d'indexation et de test de la recherche

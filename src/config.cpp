@@ -2,10 +2,31 @@
 
 #include <charconv>
 #include <cstdlib>
+#include <filesystem>
 #include <stdexcept>
 #include <string_view>
 
 namespace vigie {
+namespace {
+
+// Cherche vigie-donnees installé avec uv dans un dossier voisin du projet.
+std::string find_data_server() {
+    const std::filesystem::path parent = std::filesystem::path(VIGIE_DEFAULT_ROOT).parent_path();
+    for (const char* folder : {"vigie_donnees", "vigie-donnees"}) {
+#ifdef _WIN32
+        const std::filesystem::path program = parent / folder / ".venv" / "Scripts" / "vigie-donnees.exe";
+#else
+        const std::filesystem::path program = parent / folder / ".venv" / "bin" / "vigie-donnees";
+#endif
+        std::error_code error;
+        if (std::filesystem::exists(program, error)) {
+            return '"' + program.string() + '"';
+        }
+    }
+    return {};
+}
+
+}  // namespace
 
 Config load_config() {
     Config config;
@@ -33,6 +54,13 @@ Config load_config() {
 
     if (const char* llm_path = std::getenv("VIGIE_LLM_PATH")) {
         config.llm_path = llm_path;
+    }
+
+    // VIGIE_DATA_SERVER : commande du serveur de données, ou « off » pour s'en passer.
+    if (const char* command = std::getenv("VIGIE_DATA_SERVER")) {
+        config.data_server_command = std::string_view(command) == "off" ? "" : command;
+    } else {
+        config.data_server_command = find_data_server();
     }
 
     if (const char* port = std::getenv("VIGIE_PORT")) {

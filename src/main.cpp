@@ -39,8 +39,24 @@ int main() {
             std::cerr << "Redaction desactivee : " << error.what() << std::endl;
         }
 
+        // Données officielles en direct et calculs : facultatifs, Vigie s'en passe sans erreur.
+        std::unique_ptr<vigie::mcp::Client> data_server;
+        if (!config.data_server_command.empty()) {
+            data_server = std::make_unique<vigie::mcp::Client>(config.data_server_command);
+            try {
+                data_server->start();
+                std::cout << "Donnees en direct : " << config.data_server_command << std::endl;
+            } catch (const std::exception& error) {
+                std::cerr << "Donnees en direct desactivees : " << error.what() << std::endl;
+                data_server.reset();
+            }
+        } else {
+            std::cout << "Donnees en direct : serveur vigie-donnees non trouve" << std::endl;
+        }
+
         const vigie::Assistant assistant{
-            vigie::corpus::SearchIndex(config.database_path, embedder.get(), reranker.get()), generator.get()};
+            vigie::corpus::SearchIndex(config.database_path, embedder.get(), reranker.get()), generator.get(),
+            data_server.get()};
 
         crow::SimpleApp app;
         vigie::register_routes(app, config, assistant);

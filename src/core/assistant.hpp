@@ -5,8 +5,10 @@
 #include <string>
 #include <vector>
 
+#include "core/tool_router.hpp"
 #include "corpus/search.hpp"
 #include "llm/generator.hpp"
+#include "mcp/client.hpp"
 
 namespace vigie {
 
@@ -27,7 +29,7 @@ struct Source {
 struct Answer {
     std::string text;
     std::vector<Source> sources;
-    std::string engine;
+    std::string engine;  // keywords, hybrid, reranked, chat, ou donnees pour une donnée en direct.
     std::string model;   // Vide si aucune IA n'a rédigé la réponse.
     std::string status;  // found, not_found, unconfirmed, chat (échange simple) ou plan (simulateur proposé).
     std::string question;  // Question traitée, réécrite si elle dépendait de la précédente.
@@ -37,7 +39,8 @@ struct Answer {
 class Assistant {
 public:
     // Sans générateur, Vigie affiche les passages retrouvés sans les reformuler.
-    Assistant(corpus::SearchIndex index, const llm::Generator* generator);
+    // Sans client de données (tools == nullptr), Vigie répond seulement avec ses documents.
+    Assistant(corpus::SearchIndex index, const llm::Generator* generator, mcp::Client* tools = nullptr);
 
     using PassagesFound = std::function<void(const std::vector<Source>&)>;
 
@@ -50,9 +53,11 @@ public:
 private:
     Answer answer_standalone(const std::string& question, const PassagesFound& on_passages) const;
     std::string standalone_question(const std::string& question, const std::string& previous_question) const;
+    Answer answer_with_tool(const std::string& question, const ToolRoute& route, const PassagesFound& on_passages) const;
 
     corpus::SearchIndex index_;
     const llm::Generator* generator_;
+    mcp::Client* tools_;
 };
 
 }  // namespace vigie

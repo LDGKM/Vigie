@@ -30,6 +30,8 @@ ANNEXE = [
     "src/core/grounding.hpp", "src/core/grounding.cpp",
     "src/core/followup.hpp", "src/core/followup.cpp",
     "src/core/smalltalk.hpp", "src/core/smalltalk.cpp",
+    "src/core/tool_router.hpp", "src/core/tool_router.cpp",
+    "src/mcp/client.hpp", "src/mcp/client.cpp",
     "src/plan/planner.hpp", "src/plan/planner.cpp",
     "src/llm/generator.hpp", "src/llm/local_generator.hpp", "src/llm/local_generator.cpp",
     "src/corpus/types.hpp", "src/corpus/manifest.hpp", "src/corpus/manifest.cpp",

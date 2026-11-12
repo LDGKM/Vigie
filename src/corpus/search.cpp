@@ -220,6 +220,10 @@ void check_index_version(Database& database) {
 
 }  // namespace
 
+std::string fold_for_matching(std::string_view text) {
+    return fold_text(text);
+}
+
 std::vector<std::string> extract_terms(std::string_view question) {
     std::vector<std::string> terms;
     std::set<std::string> seen;

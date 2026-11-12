@@ -13,9 +13,11 @@ struct Config {
     std::string model_path;
     std::string reranker_path;
     std::string llm_path;
+    std::string data_server_command;  // Serveur MCP vigie-donnees ; vide si absent ou désactivé.
 };
 
-// Lit VIGIE_PORT, VIGIE_WEB_DIR, VIGIE_DB_PATH, VIGIE_MODEL_PATH, VIGIE_RERANKER_PATH et VIGIE_LLM_PATH. Lève std::invalid_argument si le port est invalide.
+// Lit VIGIE_PORT, VIGIE_WEB_DIR, VIGIE_DB_PATH, VIGIE_MODEL_PATH, VIGIE_RERANKER_PATH, VIGIE_LLM_PATH
+// et VIGIE_DATA_SERVER. Lève std::invalid_argument si le port est invalide.
 Config load_config();
 
 }  // namespace vigie

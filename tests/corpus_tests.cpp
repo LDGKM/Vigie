@@ -9,6 +9,7 @@
 #include "core/followup.hpp"
 #include "core/grounding.hpp"
 #include "core/smalltalk.hpp"
+#include "core/tool_router.hpp"
 #include "plan/planner.hpp"
 #include "corpus/chunker.hpp"
 #include "corpus/embedder.hpp"
@@ -395,6 +396,58 @@ void test_answer_check() {
     check(prompt.find("[2] Directive — Article 73") != std::string::npos, "passages numerotes");
 }
 
+void test_tool_router() {
+    using Kind = vigie::ToolRoute::Kind;
+    const auto tool = [](const std::string& question) {
+        const vigie::ToolRoute route = vigie::route_question(question);
+        return route.kind == Kind::Call ? route.tool : route.kind == Kind::Ask ? std::string("?") : std::string();
+    };
+
+    // Vérification d'un acteur.
+    vigie::ToolRoute route = vigie::route_question("Ce site est-il une arnaque ? placement-or-premium.com");
+    check(route.tool == "verifier_entite" && route.arguments["nom"] == "placement-or-premium.com", "site a verifier");
+    route = vigie::route_question("J'ai reçu un mail de conseiller@banque-xyz.fr, c'est sérieux ?");
+    check(route.arguments.value("nom", "") == "conseiller@banque-xyz.fr", "adresse e-mail a verifier");
+    route = vigie::route_question("La société Coinhouse est-elle autorisée ?");
+    check(route.arguments.value("nom", "") == "Coinhouse", "nom apres societe");
+    route = vigie::route_question("La plateforme Trade Republic est-elle agréée ?");
+    check(route.arguments.value("nom", "") == "Trade Republic", "nom en deux mots");
+    route = vigie::route_question("Binance est-elle autorisée en France ?");
+    check(route.arguments.value("nom", "") == "Binance", "nom en sujet");
+    check(tool("Cette plateforme est-elle une arnaque ?") == "?", "nom manquant demande");
+    check(tool("Comment reconnaître une arnaque ?").empty(), "question generale au corpus");
+    check(tool("Puis-je récupérer l'argent d'un prélèvement que j'avais pourtant autorisé ?").empty(),
+          "autorise sans acteur");
+
+    // Données officielles.
+    check(tool("Quel est le taux du livret A ?") == "taux_livrets", "taux livret A");
+    check(tool("Quel est le plafond du LEP ?") == "taux_livrets", "plafond LEP");
+    check(tool("Qu'est-ce qu'un PEL ?").empty(), "definition PEL au corpus");
+    check(tool("Quelle différence entre un PEL et un CEL ?").empty(), "comparaison au corpus");
+    check(tool("Quel est le taux directeur de la BCE aujourd'hui ?") == "taux_directeurs", "taux directeur");
+    check(tool("Comment la BCE fixe-t-elle ses taux directeurs ?").empty(), "explication au corpus");
+    check(tool("Quelle est l'inflation en France ?") == "inflation", "inflation");
+    route = vigie::route_question("Quelle était l'inflation en mars 2026 ?");
+    check(route.tool == "inflation" && route.arguments.value("mois", "") == "2026-03", "mois de l'inflation");
+    check(tool("Quel est l'objectif d'inflation de la BCE ?").empty(), "objectif d'inflation au corpus");
+    check(tool("Qu'est-ce que l'inflation ?").empty(), "definition inflation au corpus");
+
+    // Calcul de crédit.
+    route = vigie::route_question("Combien je rembourse par mois pour un prêt de 200 000 € sur 20 ans à 3,5 % ?");
+    check(route.tool == "mensualite_credit" && route.arguments["capital"] == 200000.0 &&
+              route.arguments["taux_annuel"] == 3.5 && route.arguments["duree_mois"] == 240,
+          "arguments du credit");
+    route = vigie::route_question("Mensualité d'un crédit de 150k€ à 4% sur 180 mois avec une assurance de 25 € ?");
+    check(route.tool == "mensualite_credit" && route.arguments["capital"] == 150000.0 &&
+              route.arguments["duree_mois"] == 180 && route.arguments.value("assurance_mensuelle", 0.0) == 25.0,
+          "credit en k euros avec assurance");
+    route = vigie::route_question("Quelle mensualité pour un crédit de 200 000 € ?");
+    check(route.kind == Kind::Ask && route.message.find("le taux annuel et la durée") != std::string::npos,
+          "valeurs manquantes demandees");
+    check(tool("Que faire si je ne peux plus rembourser mon crédit ?").empty(), "credit sans chiffres au corpus");
+    check(tool("Qu'est-ce que la DSP2 ?").empty(), "question documentaire");
+}
+
 int main() {
     test_clean_text();
     test_eu_law_sections();
@@ -410,6 +463,7 @@ int main() {
     test_followup();
     test_small_talk();
     test_planner();
+    test_tool_router();
 
     if (failures == 0) {
         std::cout << "Tous les tests sont passes.\n";

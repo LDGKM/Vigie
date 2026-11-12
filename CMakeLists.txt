@@ -130,6 +130,8 @@ add_library(vigie_corpus STATIC
     src/core/grounding.cpp
     src/core/followup.cpp
     src/core/smalltalk.cpp
+    src/core/tool_router.cpp
+    src/mcp/client.cpp
     src/plan/planner.cpp
     src/corpus/chunker.cpp
     src/corpus/embedder.cpp
@@ -142,7 +144,7 @@ add_library(vigie_corpus STATIC
     src/llm/local_generator.cpp
 )
 target_include_directories(vigie_corpus PUBLIC src)
-target_include_directories(vigie_corpus SYSTEM PRIVATE "${nlohmann_json_header_SOURCE_DIR}")
+target_include_directories(vigie_corpus SYSTEM PUBLIC "${nlohmann_json_header_SOURCE_DIR}")
 target_link_libraries(vigie_corpus PUBLIC vigie_sqlite vigie_pdfium llama)
 vigie_compile_options(vigie_corpus)
 

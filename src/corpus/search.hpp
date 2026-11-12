@@ -51,6 +51,9 @@ public:
 // Extrait les mots utiles d'une question : sans mots vides, accents ni pluriel simple.
 std::vector<std::string> extract_terms(std::string_view question);
 
+// Met un texte en minuscules sans accents, la ponctuation remplacée par des espaces.
+std::string fold_for_matching(std::string_view text);
+
 class Embedder;
 class Reranker;
 
