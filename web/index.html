@@ -131,6 +131,10 @@
       .modes button { padding: 6px 10px; font-size: 13px; }
       .brand h1 { font-size: 18px; }
     }
+    @media print {
+      header, footer { position: static; backdrop-filter: none; }
+      footer { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -335,7 +339,8 @@
           chips.style.marginTop = "10px";
           const start = el("button", "chip primary", "Commencer le plan");
           start.type = "button";
-          start.addEventListener("click", () => setMode("plan"));
+          const years = asked.match(/(\d{1,2})\s*ans?\b/i);
+          start.addEventListener("click", () => { planHorizonHint = years ? Number(years[1]) : null; setMode("plan", true); });
           chips.append(start);
           bubble.append(chips);
         }
@@ -373,6 +378,7 @@
     let planStep = 0;
     let planResultBubble = null;
     let lastPlan = null;
+    let planHorizonHint = null;  // horizon déjà donné dans la question (« plan sur 10 ans »)
 
     // Questions sur la simulation elle-même : la réponse vient du calcul, pas des documents.
     function answerAboutPlan(text) {
@@ -411,6 +417,12 @@
       planStep = 0;
       const bubble = assistantMessage();
       bubble.append(el("p", "answer", "Faisons ton plan d'épargne. Je te pose 7 questions, puis je calcule l'évolution de ton épargne année par année selon trois hypothèses de rendement. Tes réponses restent sur ton ordinateur. C'est une simulation, pas un conseil en placement."));
+      if (planHorizonHint >= 1 && planHorizonHint <= 50) {
+        plan.horizon_years = planHorizonHint;
+        planStep = 1;
+        bubble.append(el("p", "answer", `C'est noté : un plan sur ${planHorizonHint} ans.`));
+      }
+      planHorizonHint = null;
       askPlanStep();
     }
 
