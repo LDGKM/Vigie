@@ -132,6 +132,8 @@
       .brand h1 { font-size: 18px; }
     }
     @media print {
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .msg, .chart-wrap, .legend { break-inside: avoid; }
       header, footer { position: static; backdrop-filter: none; }
       footer { display: none; }
     }
@@ -497,7 +499,7 @@
       kpi("Épargne mensuelle", euros.format(data.monthly_saving));
       kpi("Taux d'épargne", percent.format(data.saving_rate));
       kpi("Versements cumulés", euros.format(last.contributed));
-      kpi("Épargne de précaution", data.months_to_emergency === 0 ? "Atteinte" : data.months_to_emergency ? `${data.months_to_emergency} mois` : "Non atteinte");
+      kpi("Épargne de précaution", data.months_to_emergency === 0 ? "Atteinte" : data.months_to_emergency ? `dans ${data.months_to_emergency} mois` : "Non atteinte");
       card.append(kpis);
 
       for (const warning of data.warnings) card.append(el("p", "warning", warning));

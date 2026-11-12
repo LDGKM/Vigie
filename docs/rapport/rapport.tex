@@ -204,14 +204,14 @@ Le contrôle automatique vérifie les citations et les nombres, pas le sens d'un
 Échange simple (salutation, présentation) & instantané & < 0,1 s \\
 Simulation d'un plan financier & instantané & \planLatence \\
 Recherche seule, 95\textsuperscript{e} centile, version 0.5 & 6,9 s & --- \\
-Recherche seule, 95\textsuperscript{e} centile, version 1.0 & à mesurer & \rechercheFinale \\
-Refus par la recherche (médiane), version 1.0 & --- & 15 s \\
-Réponse rédigée complète (médiane), version 1.0 & à mesurer & \chaineFinale \\
+Recherche seule, 95\textsuperscript{e} centile, version 1.0 & --- & \rechercheFinale \\
+Refus par la recherche, version 1.0 & 5 s\textsuperscript{*} & 15 s (médiane) \\
+Réponse rédigée complète, version 1.0 & 45 s\textsuperscript{*} & \chaineFinale{} (médiane) \\
 Réécriture d'une question de suite & --- & environ 10 s \\
 Indexation, par nouveau passage & --- & 1,4 s \\
 \bottomrule
 \end{tabularx}
-\caption{Temps mesurés. Le modèle de langage génère environ 3,6 mots par seconde sur 2 cœurs.}
+\caption{Temps mesurés. \textsuperscript{*}~Mesure unique sur le scénario de démonstration du 12 novembre (« Qu'est-ce que la DSP2 ? » et « Quelle est la capitale du Pérou ? »). Le modèle de langage génère environ 3,6 mots par seconde sur 2 cœurs.}
 \end{table}
 
 \paragraph{Choix du modèle de langage.} Trois modèles ont été comparés sur 7 cas (citations, refus, fausse consigne) : Gemma~4~E2B (12 mots/s) a répondu à une question hors corpus, SmolLM3 (5 mots/s) plaçait mal ses citations, Qwen3.5-4B (3,6 mots/s) a réussi les 7 cas. Qwen3.5-4B est retenu : la fiabilité passe avant la vitesse. Pour réduire l'attente, la page affiche les passages trouvés dès la fin de la recherche, puis la réponse une fois vérifiée.
