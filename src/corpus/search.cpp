@@ -74,11 +74,13 @@ bool is_ascii_alnum(unsigned char c) {
 }
 
 // Met le texte en minuscules sans accents et remplace la ponctuation par des espaces.
-std::string fold_text(std::string_view text) {
+// Si offsets est fourni, il reçoit pour chaque caractère produit sa position dans le texte d'origine.
+std::string fold_text(std::string_view text, std::vector<std::size_t>* offsets = nullptr) {
     std::string out;
     out.reserve(text.size());
 
     for (std::size_t i = 0; i < text.size(); ++i) {
+        const std::size_t origin = i;
         const auto c = static_cast<unsigned char>(text[i]);
         if (is_ascii_alnum(c)) {
             out += static_cast<char>(c >= 'A' && c <= 'Z' ? c - 'A' + 'a' : c);
@@ -99,6 +101,9 @@ std::string fold_text(std::string_view text) {
         } else {
             out += ' ';
         }
+        if (offsets != nullptr) {
+            offsets->resize(out.size(), origin);
+        }
     }
 
     return out;
@@ -108,6 +113,7 @@ std::string fold_text(std::string_view text) {
 // un mot absent du corpus, comme « diesel », pèse lourd et fait baisser la couverture.
 struct TermCoverage {
     std::unordered_map<int, double> weights_by_chunk;
+    std::unordered_map<std::string, double> weight_of_term;
     double total_weight = 0.0;
 
     double of(int chunk_id) const {
@@ -134,6 +140,7 @@ TermCoverage compute_coverage(Database& database, const std::vector<std::string>
 
         const double weight = std::log(1.0 + chunk_count / (static_cast<double>(chunks.size()) + 1.0));
         coverage.total_weight += weight;
+        coverage.weight_of_term[term] = weight;
         for (const int chunk : chunks) {
             coverage.weights_by_chunk[chunk] += weight;
         }
@@ -209,6 +216,66 @@ std::vector<ChunkSimilarity> nearest_chunks(Database& database, const std::vecto
                       });
     results.resize(kept);
     return results;
+}
+
+// Choisit, dans un passage trop long pour le reclasseur, la fenêtre qui contient le plus de mots
+// de la question, pondérés par leur rareté. Le début du passage n'est pas toujours le bon endroit :
+// la phrase utile d'un long article se trouve souvent au milieu.
+std::string_view focus_window(std::string_view text, const std::unordered_map<std::string, double>& weights,
+                              std::size_t limit) {
+    if (text.size() <= limit) {
+        return text;
+    }
+    std::vector<std::size_t> offsets;
+    const std::string folded = " " + fold_text(text, &offsets);
+    offsets.insert(offsets.begin(), 0);
+
+    // Positions (dans le texte d'origine) des mots qui commencent comme un mot de la question.
+    struct Match {
+        std::size_t position;
+        const std::string* term;
+        double weight;
+    };
+    std::vector<Match> matches;
+    for (const auto& [term, weight] : weights) {
+        const std::string needle = " " + term;
+        for (std::size_t at = folded.find(needle); at != std::string::npos; at = folded.find(needle, at + 1)) {
+            matches.push_back({offsets[at + 1], &term, weight});
+        }
+    }
+    if (matches.empty()) {
+        return text.substr(0, text.rfind(' ', limit));
+    }
+    std::sort(matches.begin(), matches.end(), [](const Match& a, const Match& b) { return a.position < b.position; });
+
+    // La fenêtre commence un peu avant un mot trouvé, pour garder le début de sa phrase.
+    constexpr std::size_t kLeadingContext = 120;
+    std::size_t best_start = 0;
+    double best_score = -1.0;
+    for (const Match& first : matches) {
+        const std::size_t start = std::min(first.position > kLeadingContext ? first.position - kLeadingContext : 0,
+                                           text.size() - limit);
+        std::set<const std::string*> seen;
+        double score = 0.0;
+        for (const Match& match : matches) {
+            if (match.position >= start && match.position < start + limit && seen.insert(match.term).second) {
+                score += match.weight;
+            }
+        }
+        if (score > best_score + kEpsilon) {
+            best_score = score;
+            best_start = start;
+        }
+    }
+
+    // Coupe sur des espaces pour ne pas séparer un caractère accentué.
+    std::size_t begin = best_start == 0 ? 0 : text.find(' ', best_start);
+    begin = begin == std::string_view::npos ? 0 : begin + (best_start == 0 ? 0 : 1);
+    std::size_t end = begin + limit >= text.size() ? text.size() : text.rfind(' ', begin + limit);
+    if (end == std::string_view::npos || end <= begin) {
+        end = std::min(text.size(), begin + limit);
+    }
+    return text.substr(begin, end - begin);
 }
 
 void check_index_version(Database& database) {
@@ -472,12 +539,27 @@ std::vector<SearchHit> SearchIndex::search(std::string_view question, const Sear
 
     if (rerank) {
         ordered.resize(std::min(ordered.size(), options.rerank_candidates));
+        // Poids des mots de la question et de ceux ajoutés par le glossaire, pour choisir la fenêtre lue.
+        std::unordered_map<std::string, double> window_weights = coverage.weight_of_term;
+        if (options.focus_rerank_window && expanded_question.size() > question.size()) {
+            const std::vector<std::string> added = extract_terms(expanded_question.substr(question.size()));
+            std::vector<std::string> missing;
+            for (const std::string& term : added) {
+                if (!window_weights.contains(term)) {
+                    missing.push_back(term);
+                }
+            }
+            const TermCoverage extra = compute_coverage(database, missing);
+            window_weights.insert(extra.weight_of_term.begin(), extra.weight_of_term.end());
+        }
         for (auto& [score, chunk_id] : ordered) {
             SearchHit& hit = hits_by_chunk.at(chunk_id);
             std::string_view text = hit.text;
             if (options.rerank_text_limit > 0 && text.size() > options.rerank_text_limit) {
-                // Coupe sur un espace pour ne pas séparer un caractère accentué.
-                text = text.substr(0, text.rfind(' ', options.rerank_text_limit));
+                text = options.focus_rerank_window
+                           ? focus_window(text, window_weights, options.rerank_text_limit)
+                           // Coupe sur un espace pour ne pas séparer un caractère accentué.
+                           : text.substr(0, text.rfind(' ', options.rerank_text_limit));
             }
             hit.rerank_score = reranker_->score(expanded_question, hit.title + " : " + hit.section + " : " + std::string(text));
             score = hit.rerank_score;

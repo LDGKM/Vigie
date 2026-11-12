@@ -40,6 +40,7 @@ struct SearchOptions {
     double minimum_rerank_score = -3.0;
     bool use_glossary = true;
     std::size_t rerank_text_limit = 600;  // Longueur lue par le reclasseur, 0 pour tout lire.
+    bool focus_rerank_window = true;      // Lit la partie du passage la plus proche de la question.
 };
 
 // Levée si la base n'existe pas ou doit être reconstruite avec vigie_index.
