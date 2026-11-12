@@ -62,6 +62,28 @@ corpus::SearchHit tool_passage(const std::string& tool, const nlohmann::json& pa
     return hit;
 }
 
+// Verdict court tiré des champs structurés de verifier_entite ; le détail reste dans la source.
+std::string entity_verdict(const nlohmann::json& passage) {
+    const nlohmann::json data = passage.value("donnees", nlohmann::json::object());
+    const std::string name = "« " + data.value("requete", std::string("cet acteur")) + " »";
+    const bool blacklisted = data.value("alerte_liste_noire", false);
+    const bool authorised = data.value("inscrit_registre_autorises", false);
+    std::string verdict;
+    if (blacklisted && authorised) {
+        verdict = name + " figure sur une liste noire officielle, et un acteur du même nom est inscrit dans un registre "
+                         "d'acteurs autorisés : il peut s'agir d'une usurpation d'identité. ";
+    } else if (blacklisted) {
+        verdict = name + " figure sur une liste noire officielle : c'est un signal d'alerte fort. ";
+    } else if (authorised) {
+        verdict = name + " figure dans un registre officiel d'acteurs autorisés. Méfie-toi tout de même des sites "
+                         "qui usurpent son nom : vérifie l'adresse exacte du site ou de l'e-mail. ";
+    } else {
+        verdict = name + " n'apparaît ni sur les listes noires ni dans les registres consultés. Cela ne prouve pas "
+                         "qu'il est fiable : sans agrément officiel, il ne peut pas proposer de services financiers. ";
+    }
+    return verdict + "Le détail des listes consultées est dans la source [1].";
+}
+
 }  // namespace
 
 Assistant::Assistant(corpus::SearchIndex index, const llm::Generator* generator, mcp::Client* tools)
@@ -92,7 +114,11 @@ Answer Assistant::answer(const std::string& asked, const PassagesFound& on_passa
         const bool plan = reply->kind == ChatKind::PlanOffer;
         return Answer{reply->text, {}, "chat", "", plan ? "plan" : "chat", asked};
     }
-    const std::string question = standalone_question(without_greeting(asked), previous_question);
+    // Une question qui vise déjà une donnée précise se suffit à elle-même : on ne la réécrit pas
+    // avec la précédente (« La société X est-elle autorisée ? » n'est pas une question de suite).
+    const std::string cleaned = without_greeting(asked);
+    const bool direct_tool = tools_ != nullptr && route_question(cleaned).kind != ToolRoute::Kind::Documents;
+    const std::string question = direct_tool ? cleaned : standalone_question(cleaned, previous_question);
 
     if (tools_ != nullptr) {
         const ToolRoute route = route_question(question);
@@ -181,6 +207,9 @@ Answer Assistant::answer_with_tool(const std::string& question, const ToolRoute&
     // Le texte de l'outil est déjà une réponse sourcée, écrite avec soin : on le cite tel quel,
     // sauf pour les livrets, dont le passage couvre cinq produits et mérite d'être résumé.
     Answer verbatim{hit.text + " [1]", to_sources(hits), "donnees", "", "found", {}};
+    if (status != "indisponible" && route.tool == "verifier_entite") {
+        verbatim.text = entity_verdict(passage);
+    }
     if (status != "ok" || route.tool != "taux_livrets" || generator_ == nullptr) {
         return verbatim;
     }

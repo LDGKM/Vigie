@@ -61,6 +61,8 @@
     .answer { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
     .understood { margin: 0 0 6px; color: var(--muted); font-size: 13px; }
     .notice { margin: 10px 0 0; color: var(--muted); font-size: 13px; }
+    .live { margin: 0 0 8px; color: var(--accent); font-size: 13px; font-weight: 600; }
+    .chip-group { margin: 20px 0 8px; font-size: 13px; color: var(--muted); font-weight: 600; }
     .not-found .answer { color: var(--muted); }
     .error .answer { color: var(--error); }
     .cite { border: 0; background: var(--accent-soft); color: var(--accent); border-radius: 6px; padding: 0 5px; margin: 0 1px; font-size: 12px; font-weight: 700; vertical-align: 1px; }
@@ -295,7 +297,7 @@
     async function ask(question) {
       userMessage(question);
       const bubble = assistantMessage();
-      bubble.append(steps(0), el("p", "answer", "Je cherche dans mes documents…"));
+      bubble.append(steps(0), el("p", "answer", "Je cherche la réponse…"));
       setBusy(true);
       try {
         const started = await fetch("/ask/start", {
@@ -359,7 +361,13 @@
         return;
       }
 
-      const box = data.sources.length ? sourcesBlock(data.sources, data.status !== "found" || !data.model) : null;
+      // Donnée en direct : le texte cité est déjà dans la réponse, la source reste repliée.
+      const live = data.engine === "donnees";
+      if (live && data.sources.length) {
+        const s = data.sources[0];
+        bubble.append(el("p", "live", `● Donnée officielle en direct · ${s.issuer} · ${s.section.replace("Donnée consultée", "consultée")}`));
+      }
+      const box = data.sources.length ? sourcesBlock(data.sources, !live && (data.status !== "found" || !data.model)) : null;
       bubble.append(answerText(data.answer, box));
       if (data.status === "found" && data.model) bubble.append(el("p", "notice", "Réponse rédigée par une IA à partir des sources ci-dessous. Vérifie-la avant d'agir."));
       if (box) bubble.append(box);
@@ -690,19 +698,33 @@
 
     function welcome() {
       const box = el("section", "welcome");
-      box.innerHTML = `<h2>Bonjour, je suis Vigie</h2><p>Pose-moi tes questions de finance en langage courant. Je réponds à partir de documents fiables et je cite toujours mes sources.</p>
-        <div class="pillars"><div><strong>Sourcé</strong>Chaque réponse renvoie au passage exact.</div><div><strong>Honnête</strong>Je dis quand je ne trouve pas.</div><div><strong>Sans conseil</strong>J'informe, je ne vends rien.</div></div>`;
-      const chips = el("div", "chips");
-      const examples = ["Qu'est-ce qu'un crypto-actif ?", "Quel est le plafond du livret A ?", "Quelle différence entre un PEL et un CEL ?", "Que faire si ma carte est volée ?"];
-      for (const text of examples) {
-        const chip = el("button", "chip", text); chip.type = "button";
-        chip.addEventListener("click", () => submit(text));
-        chips.append(chip);
-      }
-      const planChip = el("button", "chip primary", "Faire un plan financier"); planChip.type = "button";
-      planChip.addEventListener("click", () => setMode("plan"));
-      chips.append(planChip);
-      box.append(chips);
+      box.innerHTML = `<h2>Bonjour, je suis Vigie</h2><p>Pose-moi tes questions de finance en langage courant. Je réponds à partir de documents fiables et de données officielles, et je cite toujours mes sources.</p>
+        <div class="pillars"><div><strong>Sourcé</strong>Chaque réponse renvoie au passage exact.</div><div><strong>À jour</strong>Taux, inflation et listes noires consultés en direct.</div><div><strong>Sans conseil</strong>J'informe, je ne vends rien.</div></div>`;
+
+      // Chaque groupe montre un usage : une puce pose la question, ou la prépare quand il faut la compléter.
+      const group = (title, items) => {
+        box.append(el("p", "chip-group", title));
+        const chips = el("div", "chips");
+        for (const item of items) {
+          const chip = el("button", "chip" + (item.primary ? " primary" : ""), item.label); chip.type = "button";
+          chip.addEventListener("click", item.action);
+          chips.append(chip);
+        }
+        box.append(chips);
+      };
+      const direct = (text) => ({ label: text, action: () => submit(text) });
+      const prepare = (label, text, select) => ({ label, action: () => {
+        input.value = text; autosize(); input.focus();
+        const start = text.indexOf(select); if (start >= 0) input.setSelectionRange(start, start + select.length);
+      } });
+
+      group("Comprendre", [direct("Qu'est-ce qu'un crypto-actif ?"), direct("Quelle différence entre un PEL et un CEL ?"), direct("Que faire si ma carte est volée ?")]);
+      group("Chiffres du jour", [direct("Quel est le taux du livret A ?"), direct("Quel est le taux directeur de la BCE ?"), direct("Quelle est l'inflation en France ?")]);
+      group("Vérifier et calculer", [
+        prepare("Ce site est-il fiable ?", "Le site exemple.com est-il une arnaque ?", "exemple.com"),
+        prepare("Calculer une mensualité", "Mensualité d'un prêt de 200 000 € sur 20 ans à 3,5 % ?", "200 000 €"),
+        { label: "Faire un plan financier", primary: true, action: () => setMode("plan") },
+      ]);
       thread.append(box);
     }
 
